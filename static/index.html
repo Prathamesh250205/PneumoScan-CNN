@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chest X-Ray Pneumonia Screening — CNN Comparison Demo</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- FontAwesome for clinical icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <i class="fa-solid fa-laptop-medical brand-icon"></i>
+                <div>
+                    <h1>Chest X-Ray Pneumonia Screening</h1>
+                    <p class="subtitle">CNN Model Comparison & Interpretability Research Demo</p>
+                </div>
+            </div>
+            <div class="system-status" id="system-status">
+                <span class="status-dot warning"></span>
+                <span class="status-text">Checking server connection...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <!-- Main Two-Column Layout -->
+        <div class="grid-layout">
+            
+            <!-- Left Column: Diagnostic Sandbox -->
+            <section class="sandbox-column">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-stethoscope"></i> Image Analysis Sandbox</h2>
+                        <span class="badge badge-primary">ResNet18 Live Model</span>
+                    </div>
+                    
+                    <!-- Drag and Drop Zone -->
+                    <div class="upload-zone" id="drop-zone">
+                        <input type="file" id="file-input" accept="image/*" class="file-input-hidden">
+                        <div class="upload-prompt" id="upload-prompt">
+                            <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                            <h3>Drag & drop chest X-ray image here</h3>
+                            <p>or <span class="browse-link">browse files</span></p>
+                            <p class="file-limits">Supports JPEG, PNG • Max 10MB</p>
+                        </div>
+                        <div class="preview-container hidden" id="preview-container">
+                            <img id="image-preview" src="#" alt="Uploaded Chest X-Ray">
+                            <button class="remove-btn" id="remove-btn" title="Remove image">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Action Trigger -->
+                    <div class="action-bar">
+                        <button class="btn btn-action" id="analyze-btn" disabled>
+                            <i class="fa-solid fa-microscope"></i> Run CNN Classification
+                        </button>
+                    </div>
+
+                    <!-- Prediction Results Section -->
+                    <div class="results-container hidden" id="results-container">
+                        <div class="divider"></div>
+                        <div class="results-header">
+                            <h3><i class="fa-solid fa-chart-simple"></i> Classification Results</h3>
+                            <div class="model-meta">Inference speed: <span id="inference-time">--</span> ms</div>
+                        </div>
+
+                        <!-- Results Content -->
+                        <div class="results-grid">
+                            <!-- Gauge Graphic -->
+                            <div class="gauge-card">
+                                <div class="gauge-wrapper">
+                                    <div class="gauge">
+                                        <div class="gauge-body">
+                                            <div class="gauge-fill" id="gauge-fill"></div>
+                                            <div class="gauge-cover">
+                                                <span id="gauge-percentage">0%</span>
+                                                <span class="gauge-label">Pneumonia Prob</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="gauge-caption" id="gauge-caption">--</div>
+                            </div>
+
+                            <!-- Numerical Breakdown -->
+                            <div class="metrics-card">
+                                <div class="metric-row normal">
+                                    <div class="metric-info">
+                                        <span class="label">NORMAL Probability</span>
+                                        <span class="value" id="normal-value">0%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress" id="normal-progress" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="metric-row pneumonia">
+                                    <div class="metric-info">
+                                        <span class="label">PNEUMONIA Probability</span>
+                                        <span class="value" id="pneumonia-value">0%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress" id="pneumonia-progress" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <div class="diagnosis-card" id="diagnosis-card">
+                                    <div class="diagnosis-icon" id="diagnosis-icon">
+                                        <i class="fa-solid fa-circle-question"></i>
+                                    </div>
+                                    <div>
+                                        <div class="diagnosis-title" id="diagnosis-title">Classification Decision</div>
+                                        <div class="diagnosis-desc" id="diagnosis-desc">Submit an image to analyze.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Research & Methodology -->
+            <section class="research-column">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-circle-info"></i> About This Research</h2>
+                        <span class="badge badge-info">CNN Comparison Study</span>
+                    </div>
+                    
+                    <div class="card-body">
+                        <p class="lead-text">
+                            This web demo presents a comparative evaluation of three convolutional neural network (CNN) architectures trained on the <strong>Kermany et al. Chest X-Ray Images (Pneumonia)</strong> dataset.
+                        </p>
+
+                        <!-- CNN Performance Table -->
+                        <div class="table-wrapper">
+                            <h3><i class="fa-solid fa-table-list"></i> Model Performance Comparison</h3>
+                            <table class="comparison-table">
+                                <thead>
+                                    <tr>
+                                        <th>Architecture</th>
+                                        <th>Accuracy</th>
+                                        <th>F1 Score</th>
+                                        <th>AUC-ROC</th>
+                                        <th>Clinical Focus</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="highlighted-row">
+                                        <td>
+                                            <strong>ResNet18</strong> 
+                                            <span class="table-badge">Loaded Model</span>
+                                        </td>
+                                        <td class="numeric font-bold">87.8%</td>
+                                        <td class="numeric">0.911</td>
+                                        <td class="numeric font-semibold text-teal">0.978</td>
+                                        <td class="focus-desc error-focus"><i class="fa-solid fa-triangle-exclamation"></i> Non-diagnostic regions (Shoulder/Collarbone)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>MobileNetV2</strong></td>
+                                        <td class="numeric">85.6%</td>
+                                        <td class="numeric">0.896</td>
+                                        <td class="numeric text-muted">--</td>
+                                        <td class="focus-desc correct-focus"><i class="fa-solid fa-circle-check"></i> Diagnostic regions (Lung tissue)</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>EfficientNet-B0</strong></td>
+                                        <td class="numeric">84.8%</td>
+                                        <td class="numeric">0.891</td>
+                                        <td class="numeric text-muted">--</td>
+                                        <td class="focus-desc neutral-focus">Diffuse lung regions</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Core Finding: Accuracy vs. Interpretability Trade-Off -->
+                        <div class="research-finding-box">
+                            <h3><i class="fa-solid fa-scale-balanced finding-icon"></i> Core Finding: The Interpretability Trade-off</h3>
+                            <p>
+                                When evaluating deep learning models for clinical deployments, <strong>accuracy is not the sole metric</strong>. While <strong>ResNet18</strong> achieved the highest overall accuracy (87.8%), Grad-CAM explainability analysis revealed a critical flaw: its predictions heavily relied on <strong>non-diagnostic artifacts (e.g., shoulder joint structure, patient positioning, collarbone)</strong>.
+                            </p>
+                            <p>
+                                In contrast, <strong>MobileNetV2</strong>, despite scoring 2.2% lower in raw accuracy, consistently targeted <strong>actual diagnostic areas (lung tissue consolidation and density differences)</strong>. This represents a classic accuracy-vs-interpretability trade-off where the less accurate model is clinically safer and more trustworthy.
+                            </p>
+                        </div>
+
+                        <!-- Grad-CAM Images Section -->
+                        <div class="gradcam-gallery">
+                            <h3><i class="fa-solid fa-eye"></i> Grad-CAM Interpretability Analysis</h3>
+                            <p class="gallery-intro">
+                                Select a view below to inspect how different models focus their convolutional weights when classifying Normal vs. Pneumonia X-rays.
+                            </p>
+                            
+                            <!-- Tab Navigation -->
+                            <div class="tabs">
+                                <button class="tab-btn active" onclick="switchTab('tab-output')">Comparative Output</button>
+                                <button class="tab-btn" onclick="switchTab('tab-pneumonia')">Pneumonia Focus</button>
+                                <button class="tab-btn" onclick="switchTab('tab-normal')">Normal Focus</button>
+                            </div>
+
+                            <!-- Tab Contents -->
+                            <div class="tab-content active" id="tab-output">
+                                <div class="image-wrapper-zoom">
+                                    <img src="/static/images/gradcam_output.png" alt="Grad-CAM comparison output illustrating ResNet18 non-diagnostic focus and MobileNetV2 anatomical lung focus">
+                                </div>
+                                <div class="image-caption">
+                                    <strong>Comparison Output:</strong> Notice how ResNet18 focuses on the shoulder skeletal joints (highlighted in red) to classify pneumonia, whereas MobileNetV2 targets the pulmonary parenchyma directly.
+                                </div>
+                            </div>
+
+                            <div class="tab-content" id="tab-pneumonia">
+                                <div class="image-wrapper-zoom">
+                                    <img src="/static/images/gradcam_pneumonia_example.png" alt="Grad-CAM Pneumonia Example">
+                                </div>
+                                <div class="image-caption">
+                                    <strong>Pneumonia Specimen:</strong> Attention heatmap demonstrating model targeting on consolidation areas in the lower lobe regions of a patient diagnosed with pneumonia.
+                                </div>
+                            </div>
+
+                            <div class="tab-content" id="tab-normal">
+                                <div class="image-wrapper-zoom">
+                                    <img src="/static/images/gradcam_normal_example.png" alt="Grad-CAM Normal Example">
+                                </div>
+                                <div class="image-caption">
+                                    <strong>Normal Specimen:</strong> Attention heatmap in a healthy chest X-ray. Note the lack of pathologically consolidated focus regions.
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Sticky Warning Banner at the bottom -->
+    <div class="disclaimer-banner">
+        <div class="disclaimer-content">
+            <i class="fa-solid fa-triangle-exclamation disclaimer-icon animate-pulse"></i>
+            <div>
+                <strong>Clinical Disclaimer:</strong> This system is a student research demonstration for educational and comparative purposes only. It is <strong>NOT a diagnostic tool</strong>, has not been FDA-approved, and should never be used in clinical decision-making. Always consult a qualified medical professional for any medical assessment.
+            </div>
+        </div>
+    </div>
+
+    <!-- Render Cold Start Info -->
+    <div class="info-bubble-container" id="coldstart-info">
+        <div class="info-bubble">
+            <i class="fa-solid fa-circle-info"></i>
+            <span><strong>Note on Render Free Tier:</strong> After 15 minutes of inactivity, the server spins down. The first prediction request may take 30-60 seconds as the container spins up. Subsequent predictions will run instantly.</span>
+            <button class="close-info-btn" onclick="document.getElementById('coldstart-info').remove()">&times;</button>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
