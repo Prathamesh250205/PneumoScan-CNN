@@ -36,10 +36,11 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 # State variables
 model_path = None
 session = None
+model_error = None
 
 def init_model():
     """Locate and load the first ONNX model found in the backend/ folder."""
-    global model_path, session
+    global model_path, session, model_error
     
     if not os.path.exists(BACKEND_DIR):
         os.makedirs(BACKEND_DIR, exist_ok=True)
@@ -54,6 +55,7 @@ def init_model():
             # We enforce CPUExecutionProvider to run reliably on Render's standard resource container and keep memory footprint low
             session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
             logger.info("ONNX Model loaded successfully.")
+            model_error = None
             
             # Print model input/output info
             inputs = session.get_inputs()
@@ -61,7 +63,8 @@ def init_model():
             logger.info(f"Model Input Node: Name={inputs[0].name}, Shape={inputs[0].shape}, Type={inputs[0].type}")
             logger.info(f"Model Output Node: Name={outputs[0].name}, Shape={outputs[0].shape}, Type={outputs[0].type}")
         except Exception as e:
-            logger.error(f"Error loading ONNX model: {str(e)}")
+            model_error = str(e)
+            logger.error(f"Error loading ONNX model: {model_error}")
             session = None
     else:
         logger.warning(f"No .onnx files found in '{BACKEND_DIR}'. "
@@ -76,7 +79,7 @@ async def startup_event():
 @app.get("/health")
 def health_check():
     """Health check endpoint to monitor service status and model loading state."""
-    global session, model_path
+    global session, model_path, model_error
     
     # Try re-initializing the model if it wasn't loaded (in case file was placed after startup)
     if session is None:
@@ -86,7 +89,8 @@ def health_check():
     return {
         "status": "healthy" if model_loaded else "degraded",
         "model_loaded": model_loaded,
-        "model_path": os.path.basename(model_path) if model_path else None
+        "model_path": os.path.basename(model_path) if model_path else None,
+        "model_error": model_error
     }
 
 def softmax(x):
