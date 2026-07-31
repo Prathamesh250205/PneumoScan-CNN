@@ -150,12 +150,12 @@ async def predict(file: UploadFile = File(...)):
         img_data = np.transpose(img_data, (2, 0, 1))
         
         # 5. Normalize with ImageNet parameters
-        mean = np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
-        std = np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
+        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(3, 1, 1)
+        std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
         normalized_img = (img_data - mean) / std
         
         # 6. Add batch dimension -> (1, 3, 224, 224)
-        input_tensor = np.expand_dims(normalized_img, axis=0)
+        input_tensor = np.expand_dims(normalized_img, axis=0).astype(np.float32)
         
         # Run inference
         input_name = session.get_inputs()[0].name
