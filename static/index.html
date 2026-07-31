@@ -29,6 +29,15 @@
         </div>
     </header>
 
+    <div class="research-banner">
+        <div class="research-banner-content">
+            <i class="fa-solid fa-circle-exclamation research-banner-icon animate-pulse"></i>
+            <span>
+                <strong>RESEARCH DEMONSTRATION ONLY — NOT A MEDICAL DEVICE.</strong> Not validated for clinical use or cleared by regulatory bodies (FDA/CE). Trained on a limited pediatric dataset (n=5,856) from a single source institution. This tool must not be used for diagnostic decisions.
+            </span>
+        </div>
+    </div>
+
     <main class="app-container">
         <!-- Main Two-Column Layout -->
         <div class="grid-layout">
@@ -131,14 +140,16 @@
             <!-- Right Column: Research & Methodology -->
             <section class="research-column">
                 <div class="card glass">
-                    <div class="card-header">
-                        <h2><i class="fa-solid fa-circle-info"></i> About This Research</h2>
-                        <span class="badge badge-info">CNN Comparison Study</span>
+                    <div class="card-header research-card-header">
+                        <h2><i class="fa-solid fa-circle-info"></i> Research & Methodology</h2>
+                        <a href="/static/project_summary.pdf" download class="btn-pdf-download" title="Download PDF Research Summary">
+                            <i class="fa-solid fa-file-pdf"></i> PDF Summary
+                        </a>
                     </div>
                     
                     <div class="card-body">
                         <p class="lead-text">
-                            This web demo presents a comparative evaluation of three convolutional neural network (CNN) architectures trained on the <strong>Kermany et al. Chest X-Ray Images (Pneumonia)</strong> dataset.
+                            This web demonstration presents a comparative evaluation of three convolutional neural network (CNN) architectures trained on the <strong>Kermany et al. Chest X-Ray Images (Pneumonia)</strong> dataset.
                         </p>
 
                         <!-- CNN Performance Table -->
@@ -151,7 +162,7 @@
                                         <th>Accuracy</th>
                                         <th>F1 Score</th>
                                         <th>AUC-ROC</th>
-                                        <th>Clinical Focus</th>
+                                        <th>Clinical Focus (Grad-CAM)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -162,15 +173,15 @@
                                         </td>
                                         <td class="numeric font-bold">87.8%</td>
                                         <td class="numeric">0.911</td>
-                                        <td class="numeric font-semibold text-teal">0.978</td>
-                                        <td class="focus-desc error-focus"><i class="fa-solid fa-triangle-exclamation"></i> Non-diagnostic regions (Shoulder/Collarbone)</td>
+                                        <td class="numeric font-semibold text-amber">0.978</td>
+                                        <td class="focus-desc error-focus"><i class="fa-solid fa-triangle-exclamation"></i> Non-diagnostic (Shoulder/Collarbone)</td>
                                     </tr>
                                     <tr>
                                         <td><strong>MobileNetV2</strong></td>
                                         <td class="numeric">85.6%</td>
                                         <td class="numeric">0.896</td>
                                         <td class="numeric text-muted">--</td>
-                                        <td class="focus-desc correct-focus"><i class="fa-solid fa-circle-check"></i> Diagnostic regions (Lung tissue)</td>
+                                        <td class="focus-desc correct-focus"><i class="fa-solid fa-circle-check"></i> Diagnostic (Lung tissue)</td>
                                     </tr>
                                     <tr>
                                         <td><strong>EfficientNet-B0</strong></td>
@@ -185,13 +196,24 @@
 
                         <!-- Core Finding: Accuracy vs. Interpretability Trade-Off -->
                         <div class="research-finding-box">
-                            <h3><i class="fa-solid fa-scale-balanced finding-icon"></i> Core Finding: The Interpretability Trade-off</h3>
+                            <h3><i class="fa-solid fa-scale-balanced finding-icon"></i> The Accuracy-vs-Interpretability Trade-off</h3>
                             <p>
-                                When evaluating deep learning models for clinical deployments, <strong>accuracy is not the sole metric</strong>. While <strong>ResNet18</strong> achieved the highest overall accuracy (87.8%), Grad-CAM explainability analysis revealed a critical flaw: its predictions heavily relied on <strong>non-diagnostic artifacts (e.g., shoulder joint structure, patient positioning, collarbone)</strong>.
+                                When evaluating deep learning models for clinical deployments, <strong>accuracy must be balanced with feature explainability</strong>. While <strong>ResNet18</strong> achieved the highest overall accuracy (87.8%), Grad-CAM explainability analysis revealed a critical safety concern: its predictions heavily relied on <strong>non-diagnostic artifacts (e.g., shoulder joint structures, patient posture, and collarbones)</strong>. 
                             </p>
                             <p>
-                                In contrast, <strong>MobileNetV2</strong>, despite scoring 2.2% lower in raw accuracy, consistently targeted <strong>actual diagnostic areas (lung tissue consolidation and density differences)</strong>. This represents a classic accuracy-vs-interpretability trade-off where the less accurate model is clinically safer and more trustworthy.
+                                In contrast, <strong>MobileNetV2</strong>, despite scoring 2.2% lower in raw accuracy, consistently targeted <strong>actual diagnostic areas (lung tissue consolidation and density differences)</strong>. This represents a clinical trade-off where the slightly less accurate model is much safer and more aligned with radiological practice.
                             </p>
+                        </div>
+
+                        <!-- Limitations Box -->
+                        <div class="limitations-box">
+                            <h3><i class="fa-solid fa-ban limitations-icon"></i> Technical & Clinical Limitations</h3>
+                            <ul>
+                                <li><strong>Single-Institution Cohort:</strong> The dataset is derived entirely from the Guangzhou Women and Children's Medical Center. It may not generalize to other institutions or patient populations.</li>
+                                <li><strong>Pediatric-Only Population:</strong> The models were trained exclusively on pediatric chest radiographs (ages 1 to 5). They are not validated for adult screening.</li>
+                                <li><strong>No Regulatory Clearance:</strong> This tool is an educational demonstration and has not received FDA approval or CE certification for clinical use.</li>
+                                <li><strong>Qualitative Interpretability:</strong> Grad-CAM heatmaps are evaluated qualitatively as a visual check. No systematic clinical trial was performed to evaluate feature alignment.</li>
+                            </ul>
                         </div>
 
                         <!-- Grad-CAM Images Section -->
