@@ -5,7 +5,6 @@ import numpy as np
 from PIL import Image
 import onnxruntime as ort
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -31,7 +30,7 @@ app.add_middleware(
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
-STATIC_DIR = os.path.join(BASE_DIR, "static")
+PUBLIC_DIR = os.path.join(BASE_DIR, "public")
 
 # State variables
 model_path = None
@@ -86,7 +85,10 @@ def health_check():
         init_model()
         
     model_loaded = (session is not None)
+    # ponytail: size heuristic — real ResNet18 weights are ~45MB, the committed placeholder is ~8KB
+    weights_bytes = sum(os.path.getsize(f) for f in glob.glob(model_path + "*")) if model_path else 0
     return {
+        "placeholder_weights": model_loaded and weights_bytes < 1_000_000,
         "status": "healthy" if model_loaded else "degraded",
         "model_loaded": model_loaded,
         "model_path": os.path.basename(model_path) if model_path else None,
@@ -101,6 +103,14 @@ def softmax(x):
 def sigmoid(x):
     """Compute sigmoid values for x."""
     return 1 / (1 + np.exp(-x))
+
+def preprocess(image):
+    """Same as the training eval transform: grayscale -> 3ch -> 224x224 bilinear -> [0,1] -> ImageNet norm -> NCHW."""
+    img = image.convert("L").convert("RGB").resize((224, 224), Image.Resampling.BILINEAR)
+    x = np.asarray(img, dtype=np.float32).transpose(2, 0, 1) / 255.0
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(3, 1, 1)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
+    return ((x - mean) / std)[None].astype(np.float32)
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -128,39 +138,15 @@ async def predict(file: UploadFile = File(...)):
         )
         
     # Validate uploaded file type
-    if not file.content_type.startswith("image/"):
+    if not (file.content_type or "").startswith("image/"):
         raise HTTPException(
             status_code=400,
             detail="Invalid file format. Please upload an image file."
         )
         
     try:
-        # Load image via Pillow
-        image = Image.open(file.file)
-        
-        # 1. Convert to grayscale
-        gray_image = image.convert("L")
-        
-        # 2. Replicate grayscale value to 3 channels
-        rgb_image = gray_image.convert("RGB")
-        
-        # 3. Resize to 224x224 using Bilinear interpolation
-        resized_image = rgb_image.resize((224, 224), Image.Resampling.BILINEAR)
-        
-        # 4. Scale to [0.0, 1.0] and convert to numpy array
-        img_data = np.array(resized_image).astype(np.float32) / 255.0
-        
-        # Reorder shape from HWC to CHW (3, 224, 224)
-        img_data = np.transpose(img_data, (2, 0, 1))
-        
-        # 5. Normalize with ImageNet parameters
-        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32).reshape(3, 1, 1)
-        std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
-        normalized_img = (img_data - mean) / std
-        
-        # 6. Add batch dimension -> (1, 3, 224, 224)
-        input_tensor = np.expand_dims(normalized_img, axis=0).astype(np.float32)
-        
+        input_tensor = preprocess(Image.open(file.file))
+
         # Run inference
         input_name = session.get_inputs()[0].name
         output_name = session.get_outputs()[0].name
@@ -201,13 +187,6 @@ async def predict(file: UploadFile = File(...)):
             detail=f"Inference processing failed: {str(e)}"
         )
 
-# Serve Frontend Index at /
-@app.get("/")
-async def read_root():
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "Welcome. The static index.html is missing. Please create it under static/index.html."}
-
-# Mount static directory for JS, CSS, and Images
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+# Local dev: serve the frontend. On Vercel, public/ is served by the CDN and this dir is not in the function bundle.
+if os.path.isdir(PUBLIC_DIR):
+    app.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")

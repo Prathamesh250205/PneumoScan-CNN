@@ -40,3 +40,7 @@ venv.bak/
 # Local environment variables
 .env
 .env.*
+tests/screenshots/
+
+.vercel
+.env*

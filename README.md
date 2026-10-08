@@ -23,29 +23,25 @@ This demonstrates that lower-accuracy models can sometimes be more clinically ro
 
 ## ⚡ Model Performance Comparison
 
-| Architecture | Classification Accuracy | F1-Score | AUC-ROC | Clinical Focus (Grad-CAM) | Trustworthiness |
-| :--- | :---: | :---: | :---: | :--- | :---: |
-| 🏆 **ResNet18** (Live Model) | **87.8%** | **0.911** | **0.978** | ⚠️ Artifacts (Shoulder/Collarbone) | **Low** |
-| 📱 **MobileNetV2** | **85.6%** | **0.896** | *N/A* | ✅ Anatomical Lung Fields | **High** |
-| 🌿 **EfficientNet-B0** | **84.8%** | **0.891** | *N/A* | 🔍 Diffuse Pulmonary Regions | **Moderate** |
+| Architecture | Accuracy | F1 | AUC-ROC | Sensitivity | Specificity | Grad-CAM focus |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **ResNet18** (served) | **87.8%** | **0.911** | **0.978** | 0.997 | 0.679 | ⚠️ Shoulders / clavicles |
+| **MobileNetV2** | 85.6% | 0.896 | 0.968 | 0.995 | 0.624 | ✅ Lung fields |
+| **EfficientNet-B0** | 84.8% | 0.891 | 0.951 | 0.997 | 0.598 | 🔍 Diffuse / image border |
+
+Test split of Kermany et al. (n = 624: 234 normal, 390 pneumonia), threshold 0.5. Reproduced from the exported ONNX models through the API's own preprocessing with [`scripts/export_onnx.py`](scripts/export_onnx.py). Training: [`notebooks/chest-x-ray.ipynb`](notebooks/chest-x-ray.ipynb).
+
+All three models over-call pneumonia: near-perfect sensitivity, but a third of healthy scans are flagged. That follows from the 3:1 class imbalance and a 16-image validation split.
 
 ---
 
 ## 🔍 Visualizing Diagnostic Focus: Grad-CAM
 
-### ResNet18 (Shoulder Focus) vs. MobileNetV2 (Lung Focus)
-Grad-CAM heatmaps highlight where each network focuses its weights:
+![Grad-CAM on a normal X-ray](public/images/gradcam_normal_example.webp)
 
-```
-[ResNet18 Focus]                        [MobileNetV2 Focus]
-      |                                        |
-      v (Shoulder Joint)                        v (Lung Tissue)
- ┌───────────────┐                        ┌───────────────┐
- │   🔴   ░░░    │                        │     ░░░░      │
- │  ░░░░░░░░░░   │                        │   ░░ 🔴 ░░    │
- │  ░░░░░░░░░░   │                        │   ░░ 🔴 ░░    │
- └───────────────┘                        └───────────────┘
-```
+*Normal X-ray: ResNet18 predicts pneumonia (P = 0.83) while attending to the neck and clavicles; MobileNetV2 correctly predicts normal (P = 0.09).*
+
+![Grad-CAM on a pneumonia X-ray](public/images/gradcam_pneumonia_example.webp)
 
 *   **Pneumonia Specimen**: Heatmaps concentrate on the lower lobe consolidation regions.
 *   **Normal Specimen**: Heatmaps remain diffuse, indicating unremarkable, healthy air-filled lung fields.
@@ -54,7 +50,7 @@ Grad-CAM heatmaps highlight where each network focuses its weights:
 
 ## 🛠️ Tech Stack & Micro-Architecture
 
-To run efficiently in resource-constrained cloud environments (such as Render's 512MB RAM free tier), this application is designed without heavy deep learning frameworks:
+To run efficiently in resource-constrained cloud environments (serverless functions on Vercel), this application is designed without heavy deep learning frameworks:
 
 *   **Backend**: **FastAPI** + **Uvicorn** for a high-performance, asynchronous web API.
 *   **Inference Engine**: **ONNX Runtime** (CPU Provider), running predictions with a minimal memory footprint.
@@ -64,35 +60,31 @@ To run efficiently in resource-constrained cloud environments (such as Render's 
     3. Bilinear resizing to $224 \times 224$ pixels.
     4. ImageNet normalization: $\text{mean} = [0.485, 0.456, 0.406]$ and $\text{std} = [0.229, 0.224, 0.225]$.
 *   **Frontend**: Professional clinical-grade single-page application built using semantic **HTML5**, custom **Vanilla CSS**, and **Vanilla Javascript**. Contains:
-    *   Drag-and-drop / file-picker upload sandboxes.
-    *   Dynamic semi-circular risk gauge reflecting risk classification.
-    *   Interactive tabs displaying comparative Grad-CAM heatmaps.
+    *   Drag-and-drop upload, downscaled in the browser to stay under Vercel's 4.5 MB request limit.
+    *   Probability meter with illustrative screening thresholds.
+    *   Light and dark themes, responsive down to 360px.
 
 ---
 
-## 🚀 Deployed on Render
+## 🚀 Deployment (Vercel)
 
-This project contains a `render.yaml` Blueprint definition mapping a Python Web Service.
+Live: **https://pneumoscan-nine.vercel.app**
 
-```yaml
-services:
-  - type: web
-    name: chest-xray-pneumonia-screening
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+Vercel's FastAPI preset serves `main.py` as a Python function; `public/` is served from the CDN. `vercel.json` pins the framework (otherwise `render.yaml` gets detected as a service), and `.vercelignore` keeps the bundle small.
+
+```bash
+npx vercel deploy --prod
 ```
-
-> [!NOTE]
-> **Render Free Tier Spin-Down**: Render automatically spins down free-tier services after 15 minutes of inactivity. When visiting the site after an idle period, the first request will trigger a cold start taking 30-60 seconds. All subsequent prediction requests will process instantly (<2 seconds).
 
 ---
 
 ## 💻 Local Setup Instructions
 
-### 1. Place the ONNX Model
-Copy your trained ResNet18 model to the `backend` folder:
-- **Target Path**: `backend/model.onnx`
+### 1. Model
+The trained ResNet18 ships as `backend/model.onnx` (45 MB). To re-export from a PyTorch checkpoint:
+```bash
+python scripts/export_onnx.py resnet18_best.pth --test-dir chest_xray/test
+```
 
 ### 2. Set Up Virtual Environment & Dependencies
 ```bash
@@ -114,6 +106,13 @@ pip install -r requirements.txt
 uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 Visit [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+### 4. End-to-end test (Playwright)
+```bash
+pip install playwright pytest && playwright install chromium
+pytest tests                                            # against localhost:8000
+BASE_URL=https://pneumoscan-nine.vercel.app pytest tests  # against production
+```
 
 ---
 

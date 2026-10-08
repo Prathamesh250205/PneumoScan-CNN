@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PneumoScan — Accuracy vs. Interpretability in Chest X-Ray CNNs</title>
+    <meta name="description" content="A comparison of ResNet18, MobileNetV2 and EfficientNet-B0 for pediatric pneumonia screening, and what Grad-CAM reveals about where each model looks.">
+    <meta property="og:title" content="The most accurate model was looking at the wrong thing">
+    <meta property="og:description" content="ResNet18 vs MobileNetV2 vs EfficientNet-B0 on 5,856 pediatric chest X-rays, audited with Grad-CAM.">
+    <meta property="og:image" content="/images/gradcam_normal_example.webp">
+    <meta name="theme-color" content="#f6f5f1">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316181d'/%3E%3Cpath d='M16 7v18M10 11c-3 2-4 8-2 12M22 11c3 2 4 8 2 12' stroke='%23f6f5f1' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <a class="skip" href="#demo">Skip to demo</a>
+
+    <header class="nav">
+        <div class="wrap nav-inner">
+            <a class="wordmark" href="#top">PneumoScan</a>
+            <nav aria-label="Sections">
+                <a href="#findings">Findings</a>
+                <a href="#demo">Demo</a>
+                <a href="#method">Method</a>
+                <a href="#limitations">Limitations</a>
+            </nav>
+            <div class="status" id="status" role="status">
+                <span class="dot"></span><span class="status-text">Connecting…</span>
+            </div>
+        </div>
+    </header>
+
+    <main id="top">
+        <section class="hero wrap">
+            <p class="eyebrow">Research demo · Pediatric chest radiography</p>
+            <h1>The most accurate model was looking at the wrong&nbsp;thing.</h1>
+            <p class="lede">
+                We trained three CNNs to detect pneumonia in 5,856 pediatric chest X-rays.
+                ResNet18 scored highest, but Grad-CAM showed it relied on the shoulders and
+                collarbones. MobileNetV2 scored 2.2 points lower and looked at the lungs.
+            </p>
+            <div class="actions">
+                <a class="btn btn-primary" href="#demo">Try the classifier</a>
+                <a class="btn btn-ghost" href="/project_summary.pdf" download>Download summary (PDF)</a>
+            </div>
+
+            <dl class="stats">
+                <div><dt>Images</dt><dd>5,856</dd></div>
+                <div><dt>Architectures</dt><dd>3</dd></div>
+                <div><dt>Best accuracy</dt><dd>87.8<small>%</small></dd></div>
+                <div><dt>Best AUC-ROC</dt><dd>0.978</dd></div>
+            </dl>
+        </section>
+
+        <figure class="figure wrap">
+            <div class="plate">
+                <img src="/images/gradcam_normal_example.webp" width="2380" height="420"
+                     alt="A normal chest X-ray beside Grad-CAM heatmaps from three models. ResNet18 predicts pneumonia at 0.83 while focusing on the neck and collarbones; MobileNetV2 predicts 0.09 with attention over the lung; EfficientNet-B0 predicts 1.00 with attention along the top edge.">
+            </div>
+            <figcaption>
+                <span class="fig-no">Fig. 1</span>
+                A <em>normal</em> X-ray. ResNet18 calls it pneumonia (P = 0.83) while attending to the neck and
+                clavicles. MobileNetV2 correctly calls it normal (P = 0.09). EfficientNet-B0 fixates on the image border.
+            </figcaption>
+        </figure>
+
+        <section class="section wrap" id="findings">
+            <header class="section-head">
+                <p class="eyebrow">01 · Findings</p>
+                <h2>Accuracy alone picks the wrong model</h2>
+            </header>
+
+            <div class="cols">
+                <div class="prose">
+                    <p>
+                        On the held-out test set ResNet18 led on every headline metric. Looking only
+                        at the table, it's the model you would ship.
+                    </p>
+                    <p>
+                        Grad-CAM tells a different story. ResNet18's activations repeatedly concentrate
+                        on non-diagnostic structure: shoulder joints, clavicles, patient positioning.
+                        Those features are correlated with the label in this dataset but have nothing to
+                        do with pneumonia. That is shortcut learning, and it tends to break on a new hospital's scanners.
+                    </p>
+                    <p>
+                        MobileNetV2 attends to the pulmonary fields, which is where a radiologist looks.
+                        For deployment, that 2.2-point accuracy gap is a reasonable price for a model
+                        whose evidence can be checked.
+                    </p>
+                    <p>
+                        All three share one weakness. Sensitivity is near perfect (389 of 390 pneumonia
+                        cases caught by ResNet18), but specificity is only 0.60–0.68, so roughly a third of
+                        healthy children get flagged. The training data is 3:1 pneumonia, and the 16-image
+                        validation split is too small to tune a threshold on.
+                    </p>
+                </div>
+
+                <div class="table-scroll">
+                    <table>
+                        <caption>Test set, n = 624 (234 normal, 390 pneumonia), threshold 0.5</caption>
+                        <thead>
+                            <tr><th scope="col">Model</th><th scope="col" class="num">Acc.</th><th scope="col" class="num">F1</th><th scope="col" class="num">AUC</th><th scope="col" class="num">Sens.</th><th scope="col" class="num">Spec.</th><th scope="col">Attention</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th scope="row">ResNet18 <span class="tag">served</span></th>
+                                <td class="num">87.8%</td><td class="num">0.911</td><td class="num">0.978</td><td class="num">0.997</td><td class="num">0.679</td>
+                                <td><span class="pill pill-bad">Shoulders, clavicles</span></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">MobileNetV2</th>
+                                <td class="num">85.6%</td><td class="num">0.896</td><td class="num">0.968</td><td class="num">0.995</td><td class="num">0.624</td>
+                                <td><span class="pill pill-good">Lung fields</span></td>
+                            </tr>
+                            <tr>
+                                <th scope="row">EfficientNet-B0</th>
+                                <td class="num">84.8%</td><td class="num">0.891</td><td class="num">0.951</td><td class="num">0.997</td><td class="num">0.598</td>
+                                <td><span class="pill pill-mid">Diffuse / border</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <figure class="figure">
+                <div class="plate">
+                    <img src="/images/gradcam_pneumonia_example.webp" width="2383" height="486" loading="lazy"
+                         alt="A pneumonia chest X-ray beside Grad-CAM heatmaps. All three models predict pneumonia at 1.00; ResNet18 attends to the upper-right shoulder, MobileNetV2 to the left mid-lung, EfficientNet-B0 to the top border.">
+                </div>
+                <figcaption>
+                    <span class="fig-no">Fig. 2</span>
+                    A <em>pneumonia</em> X-ray. All three models are confident (P = 1.00), but only MobileNetV2's
+                    attention falls on lung tissue. ResNet18 is right here for reasons that don't hold up.
+                </figcaption>
+            </figure>
+        </section>
+
+        <section class="section section-alt" id="demo">
+            <div class="wrap">
+                <header class="section-head">
+                    <p class="eyebrow">02 · Live demo</p>
+                    <h2>Run the served model on an X-ray</h2>
+                    <p class="section-sub">Images are downscaled in your browser, sent once for inference, and not stored.</p>
+                </header>
+
+                <div class="notice" id="placeholder-notice" hidden>
+                    <strong>Demo weights.</strong> This deployment runs a lightweight placeholder model, so its outputs
+                    don't reflect the trained ResNet18. Treat results as a UI walkthrough.
+                </div>
+
+                <div class="demo">
+                    <div class="panel">
+                        <label class="drop" id="drop" for="file">
+                            <input type="file" id="file" accept="image/png,image/jpeg,image/webp">
+                            <span class="drop-empty" id="drop-empty">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+                                <span class="drop-title">Drop a chest X-ray, or <u>browse</u></span>
+                                <span class="drop-hint">PNG, JPEG or WebP · frontal (PA/AP) view</span>
+                            </span>
+                            <img id="preview" alt="Selected X-ray preview" hidden>
+                        </label>
+                        <div class="samples">
+                            <span>Or try a test-set image:</span>
+                            <button type="button" class="link-btn" data-sample="normal">Normal</button>
+                            <button type="button" class="link-btn" data-sample="pneumonia">Pneumonia</button>
+                        </div>
+                        <div class="panel-foot">
+                            <span class="file-name" id="file-name">No file selected</span>
+                            <button type="button" class="btn btn-ghost btn-sm" id="clear" hidden>Clear</button>
+                            <button type="button" class="btn btn-primary btn-sm" id="analyze" disabled>Analyze</button>
+                        </div>
+                    </div>
+
+                    <div class="panel result" id="result" aria-live="polite">
+                        <p class="result-empty" id="result-empty">Results appear here after you analyze an image.</p>
+                        <div id="result-body" hidden>
+                            <p class="result-label">Model output · ResNet18</p>
+                            <p class="verdict" id="verdict">—</p>
+                            <p class="verdict-note" id="verdict-note"></p>
+
+                            <div class="meter" role="img" id="meter" aria-label="">
+                                <div class="meter-track">
+                                    <span class="meter-marker" id="meter-marker"></span>
+                                </div>
+                                <div class="meter-scale"><span style="left:0">0</span><span style="left:35%">0.35</span><span style="left:70%">0.70</span><span style="left:100%">1</span></div>
+                            </div>
+
+                            <dl class="probs">
+                                <div><dt>P(pneumonia)</dt><dd id="p-pneu">—</dd></div>
+                                <div><dt>P(normal)</dt><dd id="p-norm">—</dd></div>
+                                <div><dt>Round trip</dt><dd id="latency">—</dd></div>
+                            </dl>
+                            <p class="fine">Not a diagnosis. Thresholds (0.35 / 0.70) are illustrative and not clinically calibrated.</p>
+                        </div>
+                        <p class="error" id="error" role="alert" hidden></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section wrap" id="method">
+            <header class="section-head">
+                <p class="eyebrow">03 · Method</p>
+                <h2>How it was built</h2>
+            </header>
+            <ol class="steps">
+                <li>
+                    <h3>Data</h3>
+                    <p>Kermany et al. (2018) pediatric chest X-rays, 5,856 images labelled NORMAL or PNEUMONIA, ages 1–5, from Guangzhou Women and Children's Medical Center.</p>
+                </li>
+                <li>
+                    <h3>Transfer learning</h3>
+                    <p>ImageNet-pretrained ResNet18, MobileNetV2 and EfficientNet-B0, each fine-tuned with a 2-class head on identical splits.</p>
+                </li>
+                <li>
+                    <h3>Explainability</h3>
+                    <p>Grad-CAM on the final convolutional block of each network, reviewed side by side on the same test images.</p>
+                </li>
+                <li>
+                    <h3>Serving</h3>
+                    <p>Exported to ONNX and served with ONNX Runtime and FastAPI. Preprocessing matches training: grayscale → 3 ch → 224² → ImageNet normalisation.</p>
+                </li>
+            </ol>
+        </section>
+
+        <section class="section wrap" id="limitations">
+            <header class="section-head">
+                <p class="eyebrow">04 · Limitations</p>
+                <h2>What this does not show</h2>
+            </header>
+            <ul class="limits">
+                <li><strong>One institution.</strong> All images come from a single hospital, so no external validation was done.</li>
+                <li><strong>Children only.</strong> Ages 1–5. Adult radiographs are out of distribution.</li>
+                <li><strong>Qualitative attention review.</strong> Grad-CAM was inspected visually and not scored against radiologist annotations.</li>
+                <li><strong>Not a medical device.</strong> No FDA or CE clearance. Do not use it for clinical decisions.</li>
+            </ul>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="wrap footer-inner">
+            <p>
+                <strong>Research demonstration only.</strong> This is not a diagnostic tool. Consult a qualified clinician for any medical assessment.
+            </p>
+            <p class="cite">
+                Data: Kermany D.S. et al., “Identifying Medical Diagnoses and Treatable Diseases by Image-Based Deep Learning,” <em>Cell</em> 172(5), 2018.
+                · <a href="https://github.com/Prathamesh250205/PneumoScan-CNN">Source on GitHub</a>
+            </p>
+        </div>
+    </footer>
+
+    <script src="/script.js"></script>
+</body>
+</html>
