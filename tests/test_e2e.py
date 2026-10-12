@@ -40,6 +40,9 @@ def test_landing_and_predict(tmp_path):
             expect(page.locator("#verdict")).to_have_text("Pneumonia likely", timeout=60_000)
             page.click("[data-sample=normal]")
             expect(page.locator("#verdict")).to_have_text("Normal likely", timeout=60_000)
+            for name in ("resnet18", "mobilenet_v2"):
+                expect(page.locator(f"#cam-{name}")).to_have_attribute("src", re.compile("^data:image/jpeg"))
+                assert page.evaluate(f"document.getElementById('cam-{name}').naturalWidth") > 0
 
             page.screenshot(path=OUT / f"{name}.png", full_page=True)
             assert not errors, errors

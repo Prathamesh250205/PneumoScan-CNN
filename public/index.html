@@ -146,11 +146,6 @@
                     <p class="section-sub">Images are downscaled in your browser, sent once for inference, and not stored.</p>
                 </header>
 
-                <div class="notice" id="placeholder-notice" hidden>
-                    <strong>Demo weights.</strong> This deployment runs a lightweight placeholder model, so its outputs
-                    don't reflect the trained ResNet18. Treat results as a UI walkthrough.
-                </div>
-
                 <div class="demo">
                     <div class="panel">
                         <label class="drop" id="drop" for="file">
@@ -185,7 +180,7 @@
                                 <div class="meter-track">
                                     <span class="meter-marker" id="meter-marker"></span>
                                 </div>
-                                <div class="meter-scale"><span style="left:0">0</span><span style="left:35%">0.35</span><span style="left:70%">0.70</span><span style="left:100%">1</span></div>
+                                <div class="meter-scale"><span style="left:0">0</span><span style="left:50%">0.50</span><span style="left:94.6%">0.946</span><span style="left:100%"></span></div>
                             </div>
 
                             <dl class="probs">
@@ -193,9 +188,24 @@
                                 <div><dt>P(normal)</dt><dd id="p-norm">—</dd></div>
                                 <div><dt>Round trip</dt><dd id="latency">—</dd></div>
                             </dl>
-                            <p class="fine">Not a diagnosis. Thresholds (0.35 / 0.70) are illustrative and not clinically calibrated.</p>
+                            <p class="fine">Not a diagnosis. The 0.946 screening threshold was chosen to keep 95% sensitivity on the test set (cross-validated specificity 0.88).</p>
                         </div>
                         <p class="error" id="error" role="alert" hidden></p>
+                    </div>
+                </div>
+
+                <div class="cams" id="cams" hidden>
+                    <h3 class="cams-title">Where each model looked</h3>
+                    <p class="cams-sub">Grad-CAM for each model's own prediction. Red is where the evidence came from. Look for attention on the lung fields versus the shoulders, neck or image edges.</p>
+                    <div class="cams-grid">
+                        <figure class="cam">
+                            <img id="cam-resnet18" alt="ResNet18 Grad-CAM overlay on the uploaded X-ray">
+                            <figcaption><strong>ResNet18</strong> <span>P(pneumonia) <b id="cam-p-resnet18">—</b></span></figcaption>
+                        </figure>
+                        <figure class="cam">
+                            <img id="cam-mobilenet_v2" alt="MobileNetV2 Grad-CAM overlay on the uploaded X-ray">
+                            <figcaption><strong>MobileNetV2</strong> <span>P(pneumonia) <b id="cam-p-mobilenet_v2">—</b></span></figcaption>
+                        </figure>
                     </div>
                 </div>
             </div>

@@ -1,108 +1,51 @@
-import os
-import glob
+import base64
+import io
 import logging
-import numpy as np
-from PIL import Image
-import onnxruntime as ort
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+import os
 
-# Configure logging
+import numpy as np
+import onnxruntime as ort
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
+from PIL import Image, UnidentifiedImageError
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-app = FastAPI(
-    title="Chest X-Ray Pneumonia Screening — CNN Comparison Demo",
-    description="FastAPI service for Chest X-Ray classification using a trained ResNet18 ONNX model.",
-    version="1.0.0"
-)
+app = FastAPI(title="PneumoScan", description="Pediatric chest X-ray pneumonia screening demo (ResNet18 vs MobileNetV2).")
 
-# Enable CORS for cross-origin requests
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
+MODELS = ["resnet18", "mobilenet_v2"]  # backend/{name}.onnx, exported by scripts/export_onnx.py (outputs: logits, cam)
 
-# State variables
-model_path = None
-session = None
+sessions = {}
 model_error = None
 
-def init_model():
-    """Locate and load the first ONNX model found in the backend/ folder."""
-    global model_path, session, model_error
-    
-    if not os.path.exists(BACKEND_DIR):
-        os.makedirs(BACKEND_DIR, exist_ok=True)
-        logger.info(f"Created backend directory at: {BACKEND_DIR}")
-        
-    onnx_files = glob.glob(os.path.join(BACKEND_DIR, "*.onnx"))
-    
-    if onnx_files:
-        model_path = onnx_files[0]
-        logger.info(f"Found ONNX model at: {model_path}. Loading...")
-        try:
-            # We enforce CPUExecutionProvider to run reliably on Render's standard resource container and keep memory footprint low
-            session = ort.InferenceSession(model_path, providers=["CPUExecutionProvider"])
-            logger.info("ONNX Model loaded successfully.")
-            model_error = None
-            
-            # Print model input/output info
-            inputs = session.get_inputs()
-            outputs = session.get_outputs()
-            logger.info(f"Model Input Node: Name={inputs[0].name}, Shape={inputs[0].shape}, Type={inputs[0].type}")
-            logger.info(f"Model Output Node: Name={outputs[0].name}, Shape={outputs[0].shape}, Type={outputs[0].type}")
-        except Exception as e:
-            model_error = str(e)
-            logger.error(f"Error loading ONNX model: {model_error}")
-            session = None
-    else:
-        logger.warning(f"No .onnx files found in '{BACKEND_DIR}'. "
-                       f"Please place your model.onnx file in this directory.")
-        session = None
 
-# Load model at startup
-@app.on_event("startup")
-async def startup_event():
-    init_model()
+def load_models():
+    global model_error
+    try:
+        for name in MODELS:
+            if name not in sessions:
+                sessions[name] = ort.InferenceSession(os.path.join(BACKEND_DIR, f"{name}.onnx"), providers=["CPUExecutionProvider"])
+        model_error = None
+    except Exception as e:  # surfaced by /health
+        model_error = str(e)
+        logger.error(f"Model load failed: {e}")
+    return len(sessions) == len(MODELS)
+
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint to monitor service status and model loading state."""
-    global session, model_path, model_error
-    
-    # Try re-initializing the model if it wasn't loaded (in case file was placed after startup)
-    if session is None:
-        init_model()
-        
-    model_loaded = (session is not None)
-    # ponytail: size heuristic — real ResNet18 weights are ~45MB, the committed placeholder is ~8KB
-    weights_bytes = sum(os.path.getsize(f) for f in glob.glob(model_path + "*")) if model_path else 0
-    return {
-        "placeholder_weights": model_loaded and weights_bytes < 1_000_000,
-        "status": "healthy" if model_loaded else "degraded",
-        "model_loaded": model_loaded,
-        "model_path": os.path.basename(model_path) if model_path else None,
-        "model_error": model_error
-    }
+    loaded = load_models()
+    return {"status": "healthy" if loaded else "degraded", "model_loaded": loaded, "models": list(sessions), "model_error": model_error}
+
 
 def softmax(x):
-    """Compute softmax values for each sets of scores in x."""
     e_x = np.exp(x - np.max(x, axis=-1, keepdims=True))
     return e_x / e_x.sum(axis=-1, keepdims=True)
 
-def sigmoid(x):
-    """Compute sigmoid values for x."""
-    return 1 / (1 + np.exp(-x))
 
 def preprocess(image):
     """Same as the training eval transform: grayscale -> 3ch -> 224x224 bilinear -> [0,1] -> ImageNet norm -> NCHW."""
@@ -112,80 +55,51 @@ def preprocess(image):
     std = np.array([0.229, 0.224, 0.225], dtype=np.float32).reshape(3, 1, 1)
     return ((x - mean) / std)[None].astype(np.float32)
 
+
+def jet(v):
+    """v in [0,1] -> RGB uint8, classic Grad-CAM colormap."""
+    rgb = np.stack([np.clip(1.5 - np.abs(4 * v - k), 0, 1) for k in (3, 2, 1)], axis=-1)
+    return (rgb * 255).astype(np.uint8)
+
+
+def overlay(gray, cam):
+    """gray: PIL 'L' image (display size); cam: (7,7) non-negative. Returns a JPEG data URL."""
+    cam = cam / (cam.max() + 1e-8)
+    heat = Image.fromarray((cam * 255).astype(np.uint8)).resize(gray.size, Image.Resampling.BICUBIC)
+    heat = jet(np.asarray(heat, dtype=np.float32) / 255)
+    base = np.asarray(gray.convert("RGB"), dtype=np.float32)
+    out = Image.fromarray((0.55 * base + 0.45 * heat).astype(np.uint8))
+    buf = io.BytesIO()
+    out.save(buf, format="JPEG", quality=85)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    """
-    Predict pneumonia probability from a chest X-Ray image.
-    
-    Preprocessing pipeline:
-      1. Convert to grayscale.
-      2. Replicate to 3 channels.
-      3. Resize to 224x224.
-      4. Scale pixel values to [0, 1].
-      5. Normalize with ImageNet mean [0.485, 0.456, 0.406] and std [0.229, 0.224, 0.225].
-      6. Convert to NCHW float32 tensor and run inference.
-    """
-    global session
-    
-    # Check if the model is loaded, try reloading once
-    if session is None:
-        init_model()
-        
-    if session is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model is not loaded. Please place your model.onnx file in the backend directory."
-        )
-        
-    # Validate uploaded file type
+    """Pneumonia probability from both served models, plus each model's Grad-CAM overlay for its predicted class."""
+    if not load_models():
+        raise HTTPException(status_code=503, detail=f"Models not loaded: {model_error}")
     if not (file.content_type or "").startswith("image/"):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid file format. Please upload an image file."
-        )
-        
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload an image file.")
     try:
-        input_tensor = preprocess(Image.open(file.file))
+        image = Image.open(file.file)
+        image.load()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=400, detail="Could not decode the image.")
 
-        # Run inference
-        input_name = session.get_inputs()[0].name
-        output_name = session.get_outputs()[0].name
-        
-        raw_outputs = session.run([output_name], {input_name: input_tensor})[0]
-        
-        # Parse outputs based on shape
-        # ResNet18 trained via PyTorch ImageFolder outputs shape (1, 2)
-        # Class 0: NORMAL, Class 1: PNEUMONIA
-        if len(raw_outputs.shape) > 1 and raw_outputs.shape[1] == 2:
-            probabilities = softmax(raw_outputs)[0]
-            normal_prob = float(probabilities[0])
-            pneumonia_prob = float(probabilities[1])
-        elif len(raw_outputs.shape) > 1 and raw_outputs.shape[1] == 1:
-            # Single logit output for binary classification
-            pneumonia_prob = float(sigmoid(raw_outputs[0][0]))
-            normal_prob = 1.0 - pneumonia_prob
-        else:
-            # Flattened output vector
-            flat_val = raw_outputs.flatten()
-            if len(flat_val) == 2:
-                probabilities = softmax(flat_val)
-                normal_prob = float(probabilities[0])
-                pneumonia_prob = float(probabilities[1])
-            else:
-                pneumonia_prob = float(sigmoid(flat_val[0]))
-                normal_prob = 1.0 - pneumonia_prob
-                
-        return {
-            "normal_probability": normal_prob,
-            "pneumonia_probability": pneumonia_prob
-        }
-        
-    except Exception as e:
-        logger.error(f"Error during image processing or inference: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Inference processing failed: {str(e)}"
-        )
+    x = preprocess(image)
+    display = image.convert("L")
+    display.thumbnail((448, 448))
+    results = {}
+    for name, sess in sessions.items():
+        logits, cam = sess.run(["output", "cam"], {"input": x})
+        p = softmax(logits)[0]
+        pred = int(p.argmax())
+        results[name] = {"pneumonia_probability": float(p[1]), "heatmap": overlay(display, np.maximum(cam[0, pred], 0))}
+
+    primary = results["resnet18"]["pneumonia_probability"]
+    return {"normal_probability": 1 - primary, "pneumonia_probability": primary, "models": results}
+
 
 # Local dev: serve the frontend. On Vercel, public/ is served by the CDN and this dir is not in the function bundle.
 if os.path.isdir(PUBLIC_DIR):

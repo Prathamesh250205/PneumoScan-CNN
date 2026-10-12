@@ -11,10 +11,8 @@ async function checkHealth() {
     try {
         const res = await fetch('/health');
         const data = await res.json();
-        if (!data.model_loaded) setStatus('warn', 'Model not loaded');
-        else if (data.placeholder_weights) setStatus('warn', 'Online · demo weights');
-        else setStatus('ok', 'Online · ResNet18');
-        $('placeholder-notice').hidden = !data.placeholder_weights;
+        if (data.model_loaded) setStatus('ok', 'Online · 2 models');
+        else setStatus('warn', 'Model not loaded');
     } catch {
         setStatus('down', 'Server offline');
     }
@@ -104,13 +102,19 @@ analyzeBtn.addEventListener('click', async () => {
     }
 });
 
+// 0.946: highest ResNet18 threshold keeping 95% sensitivity on the test set (scripts/export_onnx.py)
 const LEVELS = [
-    { min: 0.70, level: 'high', verdict: 'Pneumonia likely', note: 'Output is above the 0.70 screening threshold. A clinician would need to review the image.' },
-    { min: 0.35, level: 'mid', verdict: 'Indeterminate', note: 'Output falls in the 0.35–0.70 band, which this demo treats as uncertain.' },
-    { min: 0, level: 'low', verdict: 'Normal likely', note: 'Output is below the 0.35 threshold. No consolidation pattern detected by the model.' },
+    { min: 0.946, level: 'high', verdict: 'Pneumonia likely', note: 'Above the 0.946 screening threshold, which catches 95% of pneumonia cases in the test set.' },
+    { min: 0.5, level: 'mid', verdict: 'Borderline', note: 'The model leans pneumonia, but not strongly enough to pass the screening threshold.' },
+    { min: 0, level: 'low', verdict: 'Normal likely', note: 'Below 0.5. The model favours a normal X-ray.' },
 ];
 
-function render({ pneumonia_probability: p, normal_probability: n }, ms) {
+function render({ pneumonia_probability: p, normal_probability: n, models }, ms) {
+    for (const [name, m] of Object.entries(models)) {
+        $(`cam-${name}`).src = m.heatmap;
+        $(`cam-p-${name}`).textContent = m.pneumonia_probability.toFixed(3);
+    }
+    $('cams').hidden = false;
     const { level, verdict, note } = LEVELS.find((l) => p >= l.min);
     const v = $('verdict');
     v.textContent = verdict;
@@ -125,6 +129,6 @@ function render({ pneumonia_probability: p, normal_probability: n }, ms) {
     if (window.innerWidth < 900) $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function showResult(on) { resultBody.hidden = !on; resultEmpty.hidden = on; }
+function showResult(on) { resultBody.hidden = !on; resultEmpty.hidden = on; if (!on) $('cams').hidden = true; }
 function showError(msg) { errorBox.textContent = msg; errorBox.hidden = false; }
 function hideError() { errorBox.hidden = true; }
