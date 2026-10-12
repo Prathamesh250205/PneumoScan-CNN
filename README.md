@@ -1,120 +1,115 @@
-# 🩺 Chest X-Ray Pneumonia Screening — CNN Comparison Demo
+# PneumoScan: accuracy vs. attention in pediatric chest X-ray CNNs
 
-> **Comparative Deep Learning Analysis & Interpretability Trade-Off Study**
->
-> *A medical-research screening demonstration trained on the Kermany et al. Chest X-Ray Images (Pneumonia) dataset.*
+**Live demo: https://pneumoscan-nine.vercel.app**
 
----
+Three ImageNet-pretrained CNNs (ResNet18, MobileNetV2, EfficientNet-B0) fine-tuned to detect pneumonia in pediatric chest X-rays. The most accurate one, ResNet18, puts barely more of its Grad-CAM attention on the lungs than chance would. MobileNetV2 is 2.2 points less accurate and puts 71% there. On an external adult dataset, every model loses about 0.2 AUC, and ResNet18's in-distribution lead disappears.
 
-## 📊 Research Summary & Core Findings
-
-This project evaluates three Convolutional Neural Network (CNN) architectures (**ResNet18**, **MobileNetV2**, **EfficientNet-B0**) trained via transfer learning to classify chest X-ray scans as **NORMAL** or **PNEUMONIA**.
-
-### The Accuracy-vs-Interpretability Trade-off
-
-The core finding of this research highlights a critical clinical dilemma: **the highest accuracy model is not necessarily the most trustworthy.**
-
-*   **ResNet18** achieved the highest raw classification accuracy (**87.8%**). However, **Grad-CAM explainability analysis** revealed that it frequently focused on **non-diagnostic regions** (such as the shoulder joint structure, patient posture, and collarbone) to make its decisions.
-*   **MobileNetV2** achieved a slightly lower accuracy (**85.6%**) but consistently localized its convolutional attention on the **actual lung tissue and pulmonary parenchyma**, aligning with standard radiological diagnostic criteria.
-
-This demonstrates that lower-accuracy models can sometimes be more clinically robust, explainable, and safe for diagnostic deployment.
-
----
-
-## ⚡ Model Performance Comparison
-
-| Architecture | Accuracy | F1 | AUC-ROC | Sensitivity | Specificity | Grad-CAM focus |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **ResNet18** (served) | **87.8%** | **0.911** | **0.978** | 0.997 | 0.679 | ⚠️ Shoulders / clavicles |
-| **MobileNetV2** | 85.6% | 0.896 | 0.968 | 0.995 | 0.624 | ✅ Lung fields |
-| **EfficientNet-B0** | 84.8% | 0.891 | 0.951 | 0.997 | 0.598 | 🔍 Diffuse / image border |
-
-Test split of Kermany et al. (n = 624: 234 normal, 390 pneumonia), threshold 0.5. Reproduced from the exported ONNX models through the API's own preprocessing with [`scripts/export_onnx.py`](scripts/export_onnx.py). Training: [`notebooks/chest-x-ray.ipynb`](notebooks/chest-x-ray.ipynb).
-
-All three models over-call pneumonia: near-perfect sensitivity, but a third of healthy scans are flagged. That follows from the 3:1 class imbalance and a 16-image validation split.
-
----
-
-## 🔍 Visualizing Diagnostic Focus: Grad-CAM
+> Research demonstration only. Not a medical device and not for clinical use.
 
 ![Grad-CAM on a normal X-ray](public/images/gradcam_normal_example.webp)
 
-*Normal X-ray: ResNet18 predicts pneumonia (P = 0.83) while attending to the neck and clavicles; MobileNetV2 correctly predicts normal (P = 0.09).*
+*A normal X-ray. ResNet18 calls it pneumonia (P = 0.83) with attention on the neck and upper mediastinum. MobileNetV2 correctly calls it normal (P = 0.09).*
 
-![Grad-CAM on a pneumonia X-ray](public/images/gradcam_pneumonia_example.webp)
+## Results
 
-*   **Pneumonia Specimen**: Heatmaps concentrate on the lower lobe consolidation regions.
-*   **Normal Specimen**: Heatmaps remain diffuse, indicating unremarkable, healthy air-filled lung fields.
+### 1. In-distribution (Kermany et al. test split, n = 624)
 
----
+| Model | Accuracy | F1 | AUC (95% CI) | Sensitivity | Specificity |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| ResNet18 (served) | **87.8%** | **0.911** | **0.978** (0.967–0.987) | 0.997 | 0.679 |
+| MobileNetV2 (served) | 85.6% | 0.896 | 0.968 (0.953–0.980) | 0.995 | 0.624 |
+| EfficientNet-B0 | 84.8% | 0.891 | 0.951 (0.933–0.968) | 0.997 | 0.598 |
 
-## 🛠️ Tech Stack & Micro-Architecture
+Threshold 0.5. ResNet18's AUC lead over MobileNetV2 is small but significant (paired bootstrap: −0.011, 95% CI −0.019 to −0.003).
 
-To run efficiently in resource-constrained cloud environments (serverless functions on Vercel), this application is designed without heavy deep learning frameworks:
+**Operating point.** At 0.5 all three flag about a third of healthy children. Choosing the threshold for 95% sensitivity (stratified 2-fold CV, 50 splits) gives:
 
-*   **Backend**: **FastAPI** + **Uvicorn** for a high-performance, asynchronous web API.
-*   **Inference Engine**: **ONNX Runtime** (CPU Provider), running predictions with a minimal memory footprint.
-*   **Image Processing**: Pure **NumPy** & **Pillow** implementing the identical pipeline used during training:
-    1. Grayscale conversion.
-    2. Dimension replication to 3 channels (RGB format).
-    3. Bilinear resizing to $224 \times 224$ pixels.
-    4. ImageNet normalization: $\text{mean} = [0.485, 0.456, 0.406]$ and $\text{std} = [0.229, 0.224, 0.225]$.
-*   **Frontend**: Professional clinical-grade single-page application built using semantic **HTML5**, custom **Vanilla CSS**, and **Vanilla Javascript**. Contains:
-    *   Drag-and-drop upload, downscaled in the browser to stay under Vercel's 4.5 MB request limit.
-    *   Probability meter with illustrative screening thresholds.
-    *   Light and dark themes, responsive down to 360px.
+| Model | Threshold | Sensitivity | Specificity |
+| :--- | :---: | :---: | :---: |
+| ResNet18 | 0.946 | 0.949 ± 0.021 | **0.882 ± 0.024** |
+| MobileNetV2 | 0.951 | 0.948 ± 0.025 | 0.863 ± 0.032 |
+| EfficientNet-B0 | 0.992 | 0.950 ± 0.020 | 0.790 ± 0.030 |
 
----
+The demo uses ResNet18 at 0.946.
 
-## 🚀 Deployment (Vercel)
+### 2. Where the models look
 
-Live: **https://pneumoscan-nine.vercel.app**
+For each test image, torchxrayvision's ChestX-Det PSPNet segments the lungs, clavicles and scapulae. We measure the share of Grad-CAM energy (last conv block, predicted class) that falls inside each mask. If attention were spread at random, the lung share would equal the lung's share of the image (the "chance" column).
 
-Vercel's FastAPI preset serves `main.py` as a Python function; `public/` is served from the CDN. `vercel.json` pins the framework (otherwise `render.yaml` gets detected as a service), and `.vercelignore` keeps the bundle small.
+**Normal X-rays** (masks are reliable here; on pneumonia X-rays the adult-trained segmenter drops some consolidated lung):
+
+| Model | Pediatric: on lungs (95% CI) | Pediatric: peak in lung | Adult NIH: on lungs (95% CI) |
+| :--- | :---: | :---: | :---: |
+| *chance (lung area)* | *38.5%* | | *33.4%* |
+| ResNet18 | 43.9% (42.8–45.0) | 21% | 38.7% (36.8–40.6) |
+| MobileNetV2 | **71.2%** (70.1–72.3) | **60%** | **58.2%** (56.3–60.0) |
+| EfficientNet-B0 | 40.7% (38.1–43.4) | 33% | 16.4% (14.1–19.0) |
+
+MobileNetV2 − ResNet18: **+27.3 points** (pediatric, CI +26.0 to +28.6) and +19.6 (NIH, CI +18.1 to +21.0). On pediatric pneumonia X-rays the gap is +30.6.
+
+A correction to this project's original claim. By eye, ResNet18 seemed to focus on the shoulders. Measured, its attention on clavicles and scapulae (4.7%) is below their 6.4% share of the image. Its attention isn't on the shoulders; it's spread over the neck, mediastinum and image borders, and mostly not on the lungs.
+
+### 3. External test (NIH ChestX-ray14, adult, n = 656)
+
+Batch 7 of NIH ChestX-ray14, restricted to images with radiologist-adjudicated labels from Majkowska et al. (Radiology, 2020): 364 *airspace opacity*, 292 with all four expert labels negative. Mostly AP views.
+
+| Model | Pediatric AUC | NIH AUC (95% CI) | Drop (95% CI) |
+| :--- | :---: | :---: | :---: |
+| ResNet18 | 0.978 | 0.772 (0.735–0.808) | −0.206 (−0.246 to −0.170) |
+| MobileNetV2 | 0.968 | **0.786** (0.753–0.819) | **−0.181** (−0.217 to −0.146) |
+| EfficientNet-B0 | 0.951 | 0.733 (0.695–0.771) | −0.218 (−0.259 to −0.178) |
+
+- ResNet18's lead vanishes. MobileNetV2 ranks first, but MobileNetV2 − ResNet18 = +0.015 (CI −0.020 to +0.051) is not significant, and neither is the difference in drops (+0.025, CI −0.011 to +0.063).
+- The pediatric threshold doesn't transfer. At 0.946, ResNet18 flags 80% of healthy adults (specificity 0.199).
+- Takeaway: lung-focused attention didn't produce measurable robustness under this shift, which mixes a new hospital with a new age group. It still makes MobileNetV2 the only model whose evidence can be checked against anatomy.
+
+Raw outputs: [`results/`](results) (per-image probabilities, per-image attention scores, AUC bootstrap).
+
+## Live demo
+
+- Upload an X-ray, or click a bundled test-set sample.
+- Both served models return P(pneumonia) and a Grad-CAM overlay, shown side by side.
+- The heatmaps are exact Grad-CAM at no extra cost. All three heads are global-average-pool → linear, so Grad-CAM on the last conv block equals the class activation map `Σ_k W[c,k]·A_k`. The ONNX graphs output it directly (verified correlation = 1.0 against autograd Grad-CAM).
+- Uploads are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
+
+## Stack
+
+- **Serving:** FastAPI + ONNX Runtime (CPU) as a Vercel Python function. NumPy/Pillow preprocessing identical to training: grayscale → 3 channels → 224×224 bilinear → ImageNet normalisation.
+- **Frontend:** static HTML/CSS/JS in `public/`, served from Vercel's CDN, with light and dark themes.
+- **Tests:** a Playwright end-to-end test (desktop and mobile). It uploads the samples, checks the verdicts and heatmaps, and checks for horizontal overflow and JS errors.
+
+## Reproduce
 
 ```bash
-npx vercel deploy --prod
+python -m venv venv && venv\Scripts\activate          # or: source venv/bin/activate
+pip install -r requirements.txt                        # serving only
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+pip install torchxrayvision scipy pandas playwright pytest && playwright install chromium
 ```
 
----
+| Step | Command |
+| :--- | :--- |
+| Train (Kaggle T4, ~10 epochs/model) | [`notebooks/chest-x-ray.ipynb`](notebooks/chest-x-ray.ipynb) |
+| Export to ONNX + metrics + operating point | `python scripts/export_onnx.py resnet18_best.pth --arch resnet18 --test-dir chest_xray/test --probs-csv results/kermany_resnet18.csv` |
+| Build NIH external set | download `images_007.tar.gz` from the [NIH Box](https://nihcc.app.box.com/v/ChestXray-NIHCC), extract, then `python scripts/prepare_nih.py images nih_test` |
+| AUC comparison (paired bootstrap) | `python scripts/compare_auc.py results` |
+| Attention analysis | `python scripts/gradcam_overlap.py --weights-dir <dir with *_best.pth> --test-dir chest_xray/test --out results/kermany` |
+| Run locally | `uvicorn main:app --port 8000` |
+| End-to-end test | `pytest tests` (or `BASE_URL=https://pneumoscan-nine.vercel.app pytest tests`) |
 
-## 💻 Local Setup Instructions
+Pushes to `main` deploy to Vercel automatically.
 
-### 1. Model
-The trained ResNet18 ships as `backend/model.onnx` (45 MB). To re-export from a PyTorch checkpoint:
-```bash
-python scripts/export_onnx.py resnet18_best.pth --test-dir chest_xray/test
-```
+## Limitations
 
-### 2. Set Up Virtual Environment & Dependencies
-```bash
-# Create environment
-python -m venv venv
+- **One training run per model.** Accuracy gaps of 1–3 points between models may be partly seed noise.
+- **The external test confounds two shifts:** a different hospital and adults instead of children (and mostly AP views).
+- **Lung masks come from a model trained on adults,** not radiologist annotation. It undercounts consolidated lung on pediatric pneumonia X-rays, which is why normal X-rays are the primary comparison.
+- **The validation split is 16 images.** Operating points were chosen by cross-validation on the test set, so they're optimistic for a truly new site, as the NIH result shows.
+- **Not a medical device.** No FDA or CE clearance.
 
-# Activate environment (Windows)
-venv\Scripts\activate
+## Data and citations
 
-# Activate environment (Mac/Linux)
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Launch the Server
-```bash
-uvicorn main:app --host 127.0.0.1 --port 8000 --reload
-```
-Visit [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
-
-### 4. End-to-end test (Playwright)
-```bash
-pip install playwright pytest && playwright install chromium
-pytest tests                                            # against localhost:8000
-BASE_URL=https://pneumoscan-nine.vercel.app pytest tests  # against production
-```
-
----
-
-## ⚖️ Clinical Disclaimer
-**This application is a student research demonstration for educational purposes only. It is NOT an FDA-cleared diagnostic tool and should never be used to make clinical decisions or assessments. Consult a licensed radiologist or medical professional for health evaluations.**
+- Kermany D.S. et al., "Identifying Medical Diagnoses and Treatable Diseases by Image-Based Deep Learning," *Cell* 172(5), 2018.
+- Wang X. et al., "ChestX-ray8," CVPR 2017 (NIH ChestX-ray14).
+- Majkowska A. et al., "Chest Radiograph Interpretation with Deep Learning Models," *Radiology* 294(2), 2020 (expert labels).
+- Cohen J.P. et al., "TorchXRayVision," MIDL 2022 (segmentation model).

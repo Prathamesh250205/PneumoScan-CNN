@@ -12,6 +12,7 @@ import numpy as np
 import onnxruntime as ort
 import torch
 from PIL import Image
+from scipy.stats import rankdata
 from torch import nn
 from torchvision import models
 
@@ -65,11 +66,7 @@ def threshold_for(y, p, target):
 
 def auc(labels, scores):
     """Mann-Whitney AUC (ties averaged)."""
-    order = np.argsort(scores)
-    ranks = np.empty(len(scores))
-    ranks[order] = np.arange(1, len(scores) + 1)
-    for s in np.unique(scores):
-        ranks[scores == s] = ranks[scores == s].mean()
+    ranks = rankdata(scores)
     pos = labels == 1
     return (ranks[pos].sum() - pos.sum() * (pos.sum() + 1) / 2) / (pos.sum() * (~pos).sum())
 
@@ -81,6 +78,7 @@ def main():
     ap.add_argument("--out", help="default: backend/{arch}.onnx")
     ap.add_argument("--test-dir", help="ImageFolder-style dir with NORMAL/ and PNEUMONIA/")
     ap.add_argument("--target-sensitivity", type=float, default=0.95)
+    ap.add_argument("--probs-csv", help="write file,label,p_pneumonia per test image")
     args = ap.parse_args()
     args.out = args.out or str(ROOT / "backend" / f"{args.arch}.onnx")
 
@@ -105,13 +103,17 @@ def main():
 
     if not args.test_dir:
         return
-    labels, probs = [], []
+    labels, probs, names = [], [], []
     for label, cls in enumerate(["NORMAL", "PNEUMONIA"]):
         for f in sorted((Path(args.test_dir) / cls).iterdir()):
             logits = sess.run(["output"], {"input": preprocess(Image.open(f))})[0]
             probs.append(float(softmax(logits)[0][1]))
             labels.append(label)
+            names.append(f.name)
     y, p = np.array(labels), np.array(probs)
+    if args.probs_csv:
+        rows = "".join(f"{n},{lb},{q:.6f}\n" for n, lb, q in zip(names, labels, probs))
+        Path(args.probs_csv).write_text("file,label,p_pneumonia\n" + rows)
     tp, tn, fp, fn = confusion(y, p, 0.5)
     print(f"n={len(y)}  acc={(tp + tn) / len(y):.3f}  sensitivity={tp / (tp + fn):.3f}  "
           f"specificity={tn / (tn + fp):.3f}  f1={2 * tp / (2 * tp + fp + fn):.3f}  auc={auc(y, p):.3f}")

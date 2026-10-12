@@ -1,0 +1,21 @@
+
+== pediatric (Kermany test), n = 624
+  AUC resnet18         0.978  95% CI [0.967, 0.987]
+  AUC mobilenet_v2     0.968  95% CI [0.953, 0.980]
+  AUC efficientnet_b0  0.951  95% CI [0.933, 0.968]
+  mobilenet_v2 - resnet18: -0.011 [-0.019, -0.003]
+  efficientnet_b0 - resnet18: -0.027 [-0.041, -0.015]
+
+== adult external (NIH, expert labels), n = 656
+  AUC resnet18         0.772  95% CI [0.735, 0.808]
+  AUC mobilenet_v2     0.786  95% CI [0.753, 0.819]
+  AUC efficientnet_b0  0.733  95% CI [0.695, 0.771]
+  mobilenet_v2 - resnet18: +0.015 [-0.020, +0.051]
+  efficientnet_b0 - resnet18: -0.039 [-0.066, -0.011]
+
+== AUC drop, pediatric -> adult external
+  resnet18         -0.206 [-0.246, -0.170]
+  mobilenet_v2     -0.181 [-0.217, -0.146]
+  efficientnet_b0  -0.218 [-0.259, -0.178]
+  drop(mobilenet_v2) - drop(resnet18): +0.025 [-0.011, +0.063]
+  drop(efficientnet_b0) - drop(resnet18): -0.012 [-0.042, +0.019]
