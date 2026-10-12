@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PneumoScan: project summary</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<style>
+    @page { size: A4; margin: 16mm 16mm 14mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 9.6pt/1.45 "IBM Plex Sans", sans-serif; color: #16181d; }
+    h1 { font: 400 23pt/1.1 Newsreader, serif; letter-spacing: -0.02em; margin: 0 0 4pt; }
+    h2 { font: 500 13pt/1.2 Newsreader, serif; margin: 13pt 0 5pt; padding-top: 7pt; border-top: 1px solid #dedbd2; }
+    p { margin: 0 0 6pt; }
+    .meta { font: 8pt "IBM Plex Mono", monospace; color: #7a7f8c; margin-bottom: 9pt; }
+    .meta a { color: #0f5f53; }
+    .lede { font-size: 10.6pt; color: #33373f; }
+    .note { font-size: 8pt; color: #7a7f8c; }
+    table { width: 100%; border-collapse: collapse; margin: 3pt 0 6pt; font-size: 8.8pt; }
+    th, td { text-align: left; padding: 3.5pt 6pt 3.5pt 0; border-bottom: 1px solid #e6e3db; }
+    thead th { font: 500 7.5pt "IBM Plex Mono", monospace; color: #7a7f8c; border-bottom-color: #16181d; }
+    td.n, th.n { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 8.4pt; }
+    tr.chance td { color: #7a7f8c; font-style: italic; }
+    b { font-weight: 600; }
+    figure { margin: 6pt 0 2pt; }
+    figure img { width: 100%; border: 1px solid #dedbd2; }
+    figcaption { font-size: 8pt; color: #4a4f5c; margin-top: 3pt; }
+    .box { background: #f6ecd8; border-left: 3px solid #9a6400; padding: 6pt 9pt; font-size: 8.6pt; margin-top: 10pt; }
+    ul { margin: 0; padding-left: 13pt; }
+    li { margin-bottom: 3pt; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14pt; }
+    .break { break-before: page; }
+</style>
+</head>
+<body>
+    <h1>The most accurate model was looking at the wrong thing</h1>
+    <p class="meta">PneumoScan · project summary · live demo <a href="https://pneumoscan-nine.vercel.app">pneumoscan-nine.vercel.app</a> · code <a href="https://github.com/Prathamesh250205/PneumoScan-CNN">github.com/Prathamesh250205/PneumoScan-CNN</a></p>
+
+    <p class="lede">
+        Three ImageNet-pretrained CNNs were fine-tuned to detect pneumonia in pediatric chest X-rays (Kermany et al., 5,856 images).
+        ResNet18 scored highest, but only 44% of its Grad-CAM attention fell on the lungs, barely above the 39% expected
+        by chance. MobileNetV2 was 2.2 points less accurate and put 71% there. On 656 adult X-rays from another hospital, every model
+        lost about 0.2 AUC and ResNet18's lead disappeared.
+    </p>
+
+    <figure>
+        <img src="../public/images/gradcam_normal_example.webp" alt="">
+        <figcaption><b>Fig. 1</b> A normal X-ray. ResNet18 predicts pneumonia (P = 0.83) with attention on the neck and upper
+            mediastinum. MobileNetV2 correctly predicts normal (P = 0.09) with attention on the lung.</figcaption>
+    </figure>
+
+    <h2>1 · In-distribution performance</h2>
+    <table>
+        <thead><tr><th>Model</th><th class="n">Accuracy</th><th class="n">F1</th><th class="n">AUC (95% CI)</th><th class="n">Sens.</th><th class="n">Spec.</th><th class="n">Spec. at 95% sens.*</th></tr></thead>
+        <tbody>
+            <tr><td><b>ResNet18</b> (served)</td><td class="n">87.8%</td><td class="n">0.911</td><td class="n">0.978 (0.967–0.987)</td><td class="n">0.997</td><td class="n">0.679</td><td class="n">0.882</td></tr>
+            <tr><td><b>MobileNetV2</b> (served)</td><td class="n">85.6%</td><td class="n">0.896</td><td class="n">0.968 (0.953–0.980)</td><td class="n">0.995</td><td class="n">0.624</td><td class="n">0.863</td></tr>
+            <tr><td><b>EfficientNet-B0</b></td><td class="n">84.8%</td><td class="n">0.891</td><td class="n">0.951 (0.933–0.968)</td><td class="n">0.997</td><td class="n">0.598</td><td class="n">0.790</td></tr>
+        </tbody>
+    </table>
+    <p class="note">Kermany test split, n = 624 (234 normal, 390 pneumonia), threshold 0.5 unless noted. *Threshold chosen for 95% sensitivity by
+        stratified 2-fold cross-validation (50 splits). For ResNet18 this is t = 0.946, used by the live demo.</p>
+
+    <h2>2 · Where the models look</h2>
+    <p>Lungs, clavicles and scapulae were segmented with torchxrayvision's ChestX-Det PSPNet. For each image we measured the share of Grad-CAM
+        energy (last conv block, predicted class) inside the lung mask. Normal X-rays are the clean comparison, because the adult-trained segmenter
+        drops some consolidated lung on pediatric pneumonia X-rays.</p>
+    <table>
+        <thead><tr><th>Normal X-rays</th><th class="n">Pediatric: on lungs (95% CI)</th><th class="n">Peak in lung</th><th class="n">Adult NIH: on lungs (95% CI)</th></tr></thead>
+        <tbody>
+            <tr class="chance"><td>chance (lung share of image)</td><td class="n">38.5%</td><td class="n"></td><td class="n">33.4%</td></tr>
+            <tr><td><b>ResNet18</b></td><td class="n">43.9% (42.8–45.0)</td><td class="n">21%</td><td class="n">38.7% (36.8–40.6)</td></tr>
+            <tr><td><b>MobileNetV2</b></td><td class="n"><b>71.2%</b> (70.1–72.3)</td><td class="n"><b>60%</b></td><td class="n"><b>58.2%</b> (56.3–60.0)</td></tr>
+            <tr><td><b>EfficientNet-B0</b></td><td class="n">40.7% (38.1–43.4)</td><td class="n">33%</td><td class="n">16.4% (14.1–19.0)</td></tr>
+        </tbody>
+    </table>
+    <p>MobileNetV2 − ResNet18: <b>+27.3 points</b> on pediatric (CI +26.0 to +28.6) and +19.6 on adult X-rays. A correction to this project's
+        first, visual claim: ResNet18's attention on the clavicles and scapulae (4.7%) is <i>below</i> their 6.4% share of the image. Its attention
+        isn't on the shoulders. It's spread over the neck, mediastinum and borders, and mostly not on the lungs.</p>
+
+    <h2 class="break">3 · External test: another hospital, adult patients</h2>
+    <p>656 X-rays from NIH ChestX-ray14 (batch 7) with radiologist-adjudicated labels (Majkowska et al., 2020): 364 airspace opacity,
+        292 with all expert labels negative, mostly AP views.</p>
+    <table>
+        <thead><tr><th>Model</th><th class="n">Pediatric AUC</th><th class="n">NIH AUC (95% CI)</th><th class="n">Drop (95% CI)</th></tr></thead>
+        <tbody>
+            <tr><td><b>ResNet18</b></td><td class="n">0.978</td><td class="n">0.772 (0.735–0.808)</td><td class="n">−0.206 (−0.246 to −0.170)</td></tr>
+            <tr><td><b>MobileNetV2</b></td><td class="n">0.968</td><td class="n"><b>0.786</b> (0.753–0.819)</td><td class="n"><b>−0.181</b> (−0.217 to −0.146)</td></tr>
+            <tr><td><b>EfficientNet-B0</b></td><td class="n">0.951</td><td class="n">0.733 (0.695–0.771)</td><td class="n">−0.218 (−0.259 to −0.178)</td></tr>
+        </tbody>
+    </table>
+    <ul>
+        <li>ResNet18's pediatric lead is significant (paired bootstrap ΔAUC −0.011, CI −0.019 to −0.003 for MobileNetV2 − ResNet18) but
+            vanishes externally. MobileNetV2 ranks first, though +0.015 (CI −0.020 to +0.051) is not significant.</li>
+        <li>Thresholds don't transfer. At the pediatric 0.946, ResNet18 flags 80% of healthy adults (specificity 0.199).</li>
+        <li>Lung-focused attention did not buy measurable robustness under this shift, which mixes a new hospital with a new age group.</li>
+    </ul>
+
+    <h2>Method and system</h2>
+    <div class="cols">
+        <ul>
+            <li><b>Training:</b> PyTorch, ImageNet weights, 2-class head, Adam 1e-4, 10 epochs, flips and ±10° rotation (Kaggle T4).</li>
+            <li><b>Preprocessing:</b> grayscale → 3 channels → 224² bilinear → ImageNet normalisation. Identical in training and serving.</li>
+            <li><b>Statistics:</b> stratified bootstrap (2,000 draws), paired across models on the same images.</li>
+        </ul>
+        <ul>
+            <li><b>Serving:</b> ONNX Runtime + FastAPI as a Vercel function. The ONNX graphs also output the class activation map, which equals
+                Grad-CAM for global-average-pool heads (verified correlation 1.0), so live heatmaps need no backward pass.</li>
+            <li><b>Testing:</b> Playwright end-to-end test on desktop and mobile, run against local and production.</li>
+        </ul>
+    </div>
+
+    <h2>Limitations</h2>
+    <ul>
+        <li>One training run per model, so 1–3 point gaps between models may be partly seed noise.</li>
+        <li>The external test mixes a hospital shift with an age shift (children → adults).</li>
+        <li>Lung masks come from a segmentation model, not radiologists.</li>
+        <li>The validation split has 16 images, so operating points were cross-validated on the test set and are optimistic for new sites.</li>
+    </ul>
+
+    <div class="box"><b>Research demonstration only. Not a medical device.</b> Not validated for clinical use and not cleared by any regulator.
+        Do not use for diagnostic decisions.</div>
+
+    <p class="note" style="margin-top:10pt">Data: Kermany et al., <i>Cell</i> 2018 · Wang et al., CVPR 2017 (ChestX-ray14) · Majkowska et al.,
+        <i>Radiology</i> 2020 · Cohen et al., MIDL 2022 (TorchXRayVision).</p>
+</body>
+</html>

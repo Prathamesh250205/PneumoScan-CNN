@@ -1,10 +1,7 @@
 venv/
 __pycache__/
-Chest-X-RayProject_files/
-/*.png
 tests/
-render.yaml
-.claude/
 notebooks/
 scripts/
 results/
+.claude/

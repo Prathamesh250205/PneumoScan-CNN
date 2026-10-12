@@ -94,6 +94,7 @@ pip install torchxrayvision scipy pandas playwright pytest && playwright install
 | Build NIH external set | download `images_007.tar.gz` from the [NIH Box](https://nihcc.app.box.com/v/ChestXray-NIHCC), extract, then `python scripts/prepare_nih.py images nih_test` |
 | AUC comparison (paired bootstrap) | `python scripts/compare_auc.py results` |
 | Attention analysis | `python scripts/gradcam_overlap.py --weights-dir <dir with *_best.pth> --test-dir chest_xray/test --out results/kermany` |
+| Summary PDF (from `docs/summary.html`) | `python scripts/make_summary_pdf.py` |
 | Run locally | `uvicorn main:app --port 8000` |
 | End-to-end test | `pytest tests` (or `BASE_URL=https://pneumoscan-nine.vercel.app pytest tests`) |
 
