@@ -1,6 +1,17 @@
 # PneumoScan: accuracy vs. attention in pediatric chest X-ray CNNs
 
-**Live demo: https://pneumoscan-nine.vercel.app**
+[![Live demo](https://img.shields.io/badge/Live_demo-pneumoscan--nine.vercel.app-0f5f53?style=for-the-badge&logo=vercel&logoColor=white)](https://pneumoscan-nine.vercel.app)
+[![Summary PDF](https://img.shields.io/badge/Summary-PDF-16181d?style=for-the-badge)](https://pneumoscan-nine.vercel.app/project_summary.pdf)
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-training-EE4C2C?logo=pytorch&logoColor=white)
+![ONNX Runtime](https://img.shields.io/badge/ONNX_Runtime-inference-005CED?logo=onnx&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-e2e_tested-2EAD33?logo=playwright&logoColor=white)
+
+**Try it: [pneumoscan-nine.vercel.app](https://pneumoscan-nine.vercel.app)**. Upload a chest X-ray (or click a sample) and see where ResNet18 and MobileNetV2 look, side by side.
+
+[![PneumoScan live demo: verdict and side-by-side Grad-CAM heatmaps](docs/screenshot_demo.webp)](https://pneumoscan-nine.vercel.app/#demo)
 
 Three ImageNet-pretrained CNNs (ResNet18, MobileNetV2, EfficientNet-B0) fine-tuned to detect pneumonia in pediatric chest X-rays. The most accurate one, ResNet18, puts barely more of its Grad-CAM attention on the lungs than chance would. MobileNetV2 is 2.2 points less accurate and puts 71% there. On an external adult dataset, every model loses about 0.2 AUC, and ResNet18's in-distribution lead disappears.
 
@@ -65,7 +76,7 @@ Batch 7 of NIH ChestX-ray14, restricted to images with radiologist-adjudicated l
 
 Raw outputs: [`results/`](results) (per-image probabilities, per-image attention scores, AUC bootstrap).
 
-## Live demo
+## Live demo: [pneumoscan-nine.vercel.app](https://pneumoscan-nine.vercel.app)
 
 - Upload an X-ray, or click a bundled test-set sample.
 - Both served models return P(pneumonia) and a Grad-CAM overlay, shown side by side.
@@ -98,7 +109,7 @@ pip install torchxrayvision scipy pandas playwright pytest && playwright install
 | Run locally | `uvicorn main:app --port 8000` |
 | End-to-end test | `pytest tests` (or `BASE_URL=https://pneumoscan-nine.vercel.app pytest tests`) |
 
-Pushes to `main` deploy to Vercel automatically.
+Pushes to `main` deploy to Vercel automatically at **https://pneumoscan-nine.vercel.app**.
 
 ## Limitations
 
