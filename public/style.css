@@ -186,7 +186,8 @@ tbody th { font-weight: 500; }
     border-left: 1.5px dashed var(--ink-3);
 }
 .dp-track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--rule); }
-.dp-ci { position: absolute; top: 50%; height: 4px; margin-top: -2px; background: var(--ink-3); border-radius: 2px; }
+.dp-ci { position: absolute; top: 50%; height: 4px; margin-top: -2px; background: var(--rule); border-radius: 2px; }
+.dp-seed { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border: 1.5px solid var(--ink-3); border-radius: 50%; background: var(--bg); }
 .dp-dot {
     position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; padding: 0;
     background: var(--ink); border: 2px solid var(--bg); border-radius: 50%; cursor: default; z-index: 1;

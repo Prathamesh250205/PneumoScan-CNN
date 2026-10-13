@@ -40,9 +40,9 @@
             <p class="eyebrow">Research demo · Pediatric chest radiography</p>
             <h1>The most accurate model was looking at the wrong&nbsp;thing.</h1>
             <p class="lede">
-                We trained three CNNs to detect pneumonia in 5,856 pediatric chest X-rays.
-                ResNet18 scored highest, yet only 44% of its Grad-CAM attention landed on the lungs,
-                barely above the 39% you'd expect by chance. MobileNetV2 scored 2.2 points lower and put 71% there.
+                We trained three CNNs, three seeds each, to detect pneumonia in pediatric chest X-rays.
+                ResNet18 was the most accurate, yet only 47% of its Grad-CAM attention landed on the lungs,
+                barely above the 39% you'd expect by chance. MobileNetV2 put 67% there, in every seed.
             </p>
             <div class="actions">
                 <a class="btn btn-primary" href="#demo">Try the classifier</a>
@@ -50,10 +50,10 @@
             </div>
 
             <dl class="stats">
-                <div><dt>ResNet18 AUC</dt><dd>0.978</dd></div>
-                <div><dt>ResNet18 lung attention</dt><dd>44<small>%</small></dd></div>
-                <div><dt>MobileNetV2 lung attention</dt><dd>71<small>%</small></dd></div>
-                <div><dt>AUC on adult NIH data</dt><dd>0.77</dd></div>
+                <div><dt>ResNet18 accuracy</dt><dd>88<small>%</small></dd></div>
+                <div><dt>ResNet18 lung attention</dt><dd>47<small>%</small></dd></div>
+                <div><dt>MobileNetV2 lung attention</dt><dd>67<small>%</small></dd></div>
+                <div><dt>Seeds per model</dt><dd>3</dd></div>
             </dl>
         </section>
 
@@ -78,8 +78,13 @@
             <div class="cols">
                 <div class="prose">
                     <p>
-                        On the held-out test set ResNet18 led on every headline metric. Looking only
-                        at the table, it's the model you would ship.
+                        Averaged over three training seeds, ResNet18 is the most accurate model (88.2%). Looking
+                        only at accuracy, it's the model you would ship.
+                    </p>
+                    <p>
+                        Accuracy at a 0.5 cut-off mostly reflects how many healthy children a model flags, though.
+                        Threshold-free AUC ties all three at 0.954–0.960. Our first single run had ResNet18 at
+                        0.978 AUC; retraining showed that was a lucky draw (0.940–0.966 across seeds).
                     </p>
                     <p>
                         Grad-CAM tells a different story. In Figs. 1 and 2, ResNet18's heatmaps spread over the
@@ -88,33 +93,33 @@
                     </p>
                     <p>
                         All three over-call pneumonia at the default 0.5 threshold. Sensitivity is near perfect
-                        (389 of 390 cases for ResNet18), but a third of healthy children get flagged. Choosing the
-                        threshold for 95% sensitivity instead (0.946 for ResNet18, picked by cross-validation)
+                        (above 0.98), but 30–42% of healthy children get flagged. For the served ResNet18,
+                        choosing the threshold for 95% sensitivity instead (0.946, picked by cross-validation)
                         raises specificity from 0.68 to 0.88. The live demo uses that threshold.
                     </p>
                 </div>
 
                 <div class="table-scroll">
                     <table>
-                        <caption>Test set, n = 624 (234 normal, 390 pneumonia), threshold 0.5. Lung attention on normal X-rays, chance = 39%.</caption>
+                        <caption>Test set, n = 624. Mean ± SD over 3 seeds, threshold 0.5. Lung attention on normal X-rays (chance 39%).</caption>
                         <thead>
-                            <tr><th scope="col">Model</th><th scope="col" class="num">Acc.</th><th scope="col" class="num">F1</th><th scope="col" class="num">AUC</th><th scope="col" class="num">Sens.</th><th scope="col" class="num">Spec.</th><th scope="col" class="num">On lungs</th></tr>
+                            <tr><th scope="col">Model</th><th scope="col" class="num">Accuracy</th><th scope="col" class="num">AUC</th><th scope="col" class="num">Spec.</th><th scope="col" class="num">On lungs</th></tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <th scope="row">ResNet18 <span class="tag">served</span></th>
-                                <td class="num">87.8%</td><td class="num">0.911</td><td class="num">0.978</td><td class="num">0.997</td><td class="num">0.679</td>
-                                <td class="num"><span class="pill pill-bad">44%</span></td>
+                                <th scope="row">ResNet18</th>
+                                <td class="num">88.2% <span class="ci">± 2.9</span></td><td class="num">0.954 <span class="ci">± 0.013</span></td><td class="num">0.704 <span class="ci">± 0.083</span></td>
+                                <td class="num"><span class="pill pill-bad">47%</span></td>
                             </tr>
                             <tr>
                                 <th scope="row">MobileNetV2</th>
-                                <td class="num">85.6%</td><td class="num">0.896</td><td class="num">0.968</td><td class="num">0.995</td><td class="num">0.624</td>
-                                <td class="num"><span class="pill pill-good">71%</span></td>
+                                <td class="num">83.9% <span class="ci">± 2.6</span></td><td class="num">0.956 <span class="ci">± 0.025</span></td><td class="num">0.578 <span class="ci">± 0.072</span></td>
+                                <td class="num"><span class="pill pill-good">67%</span></td>
                             </tr>
                             <tr>
                                 <th scope="row">EfficientNet-B0</th>
-                                <td class="num">84.8%</td><td class="num">0.891</td><td class="num">0.951</td><td class="num">0.997</td><td class="num">0.598</td>
-                                <td class="num"><span class="pill pill-mid">41%</span></td>
+                                <td class="num">84.3% <span class="ci">± 0.6</span></td><td class="num">0.960 <span class="ci">± 0.002</span></td><td class="num">0.588 <span class="ci">± 0.017</span></td>
+                                <td class="num"><span class="pill pill-mid">47%</span></td>
                             </tr>
                         </tbody>
                     </table>
@@ -148,13 +153,13 @@
                         score the lungs' share of the image, shown as the dashed line.
                     </p>
                     <p>
-                        MobileNetV2 puts 71% of its attention on the lungs of normal children, nearly double chance.
-                        ResNet18 manages 44%, and EfficientNet-B0 41%. The gap repeats on adult NIH X-rays
-                        (58% vs 39%), where the segmenter is most reliable.
+                        Across three training seeds, MobileNetV2 puts 67% of its attention on the lungs of normal
+                        children. ResNet18 manages 47% and EfficientNet-B0 47%. Every MobileNetV2 seed beats every
+                        ResNet18 seed, on children and on adult NIH X-rays (58% vs 39%).
                     </p>
                     <p>
                         One correction to how this project started. By eye, ResNet18 seemed to lock onto the
-                        shoulders. Measured, its attention on clavicles and scapulae (4.7%) is below their 6.4% share
+                        shoulders. Measured on the served model, its attention on clavicles and scapulae (4.7%) is below their 6.4% share
                         of the image. Its attention isn't on the shoulders; it's simply not on the lungs.
                     </p>
                 </div>
@@ -164,26 +169,26 @@
                         <div class="dp-row">
                             <span class="dp-label">ResNet18</span>
                             <div class="dp-track">
-                                <span class="dp-ci" style="left:42.8%;width:2.2%"></span>
-                                <button type="button" class="dp-dot" style="left:43.9%" aria-label="ResNet18: 43.9% of attention on the lungs, 95% CI 42.8 to 45.0" data-tip="43.9% · 95% CI 42.8–45.0"></button>
+                                <span class="dp-ci" style="left:41.0%;width:10.8%"></span><span class="dp-seed" style="left:47.8%"></span><span class="dp-seed" style="left:41.0%"></span><span class="dp-seed" style="left:51.8%"></span>
+                                <button type="button" class="dp-dot" style="left:46.8%" aria-label="ResNet18: mean 46.8% · seeds 47.8, 41.0, 51.8" data-tip="mean 46.8% · seeds 47.8, 41.0, 51.8"></button>
                             </div>
-                            <span class="dp-val">43.9%</span>
+                            <span class="dp-val">46.8%</span>
                         </div>
                         <div class="dp-row">
                             <span class="dp-label">MobileNetV2</span>
                             <div class="dp-track">
-                                <span class="dp-ci" style="left:70.1%;width:2.2%"></span>
-                                <button type="button" class="dp-dot" style="left:71.2%" aria-label="MobileNetV2: 71.2% of attention on the lungs, 95% CI 70.1 to 72.3" data-tip="71.2% · 95% CI 70.1–72.3"></button>
+                                <span class="dp-ci" style="left:63.3%;width:7.0%"></span><span class="dp-seed" style="left:68.6%"></span><span class="dp-seed" style="left:63.3%"></span><span class="dp-seed" style="left:70.3%"></span>
+                                <button type="button" class="dp-dot" style="left:67.4%" aria-label="MobileNetV2: mean 67.4% · seeds 68.6, 63.3, 70.3" data-tip="mean 67.4% · seeds 68.6, 63.3, 70.3"></button>
                             </div>
-                            <span class="dp-val">71.2%</span>
+                            <span class="dp-val">67.4%</span>
                         </div>
                         <div class="dp-row">
                             <span class="dp-label">EfficientNet-B0</span>
                             <div class="dp-track">
-                                <span class="dp-ci" style="left:38.1%;width:5.3%"></span>
-                                <button type="button" class="dp-dot" style="left:40.7%" aria-label="EfficientNet-B0: 40.7% of attention on the lungs, 95% CI 38.1 to 43.4" data-tip="40.7% · 95% CI 38.1–43.4"></button>
+                                <span class="dp-ci" style="left:41.8%;width:13.2%"></span><span class="dp-seed" style="left:55.0%"></span><span class="dp-seed" style="left:41.8%"></span><span class="dp-seed" style="left:43.9%"></span>
+                                <button type="button" class="dp-dot" style="left:46.9%" aria-label="EfficientNet-B0: mean 46.9% · seeds 55.0, 41.8, 43.9" data-tip="mean 46.9% · seeds 55.0, 41.8, 43.9"></button>
                             </div>
-                            <span class="dp-val">40.7%</span>
+                            <span class="dp-val">46.9%</span>
                         </div>
                     </div>
                     <div class="dp-group" style="--chance:33.4%">
@@ -191,32 +196,33 @@
                         <div class="dp-row">
                             <span class="dp-label">ResNet18</span>
                             <div class="dp-track">
-                                <span class="dp-ci" style="left:36.8%;width:3.8%"></span>
-                                <button type="button" class="dp-dot" style="left:38.7%" aria-label="ResNet18: 38.7% of attention on the lungs, 95% CI 36.8 to 40.6" data-tip="38.7% · 95% CI 36.8–40.6"></button>
+                                <span class="dp-ci" style="left:34.2%;width:10.5%"></span><span class="dp-seed" style="left:38.2%"></span><span class="dp-seed" style="left:34.2%"></span><span class="dp-seed" style="left:44.7%"></span>
+                                <button type="button" class="dp-dot" style="left:39.0%" aria-label="ResNet18: mean 39.0% · seeds 38.2, 34.2, 44.7" data-tip="mean 39.0% · seeds 38.2, 34.2, 44.7"></button>
                             </div>
-                            <span class="dp-val">38.7%</span>
+                            <span class="dp-val">39.0%</span>
                         </div>
                         <div class="dp-row">
                             <span class="dp-label">MobileNetV2</span>
                             <div class="dp-track">
-                                <span class="dp-ci" style="left:56.3%;width:3.7%"></span>
-                                <button type="button" class="dp-dot" style="left:58.2%" aria-label="MobileNetV2: 58.2% of attention on the lungs, 95% CI 56.3 to 60.0" data-tip="58.2% · 95% CI 56.3–60.0"></button>
+                                <span class="dp-ci" style="left:55.7%;width:4.4%"></span><span class="dp-seed" style="left:55.7%"></span><span class="dp-seed" style="left:60.1%"></span><span class="dp-seed" style="left:59.1%"></span>
+                                <button type="button" class="dp-dot" style="left:58.3%" aria-label="MobileNetV2: mean 58.3% · seeds 55.7, 60.1, 59.1" data-tip="mean 58.3% · seeds 55.7, 60.1, 59.1"></button>
                             </div>
-                            <span class="dp-val">58.2%</span>
+                            <span class="dp-val">58.3%</span>
                         </div>
                         <div class="dp-row">
                             <span class="dp-label">EfficientNet-B0</span>
                             <div class="dp-track">
-                                <span class="dp-ci" style="left:14.1%;width:4.9%"></span>
-                                <button type="button" class="dp-dot" style="left:16.4%" aria-label="EfficientNet-B0: 16.4% of attention on the lungs, 95% CI 14.1 to 19.0" data-tip="16.4% · 95% CI 14.1–19.0"></button>
+                                <span class="dp-ci" style="left:16.7%;width:27.4%"></span><span class="dp-seed" style="left:44.1%"></span><span class="dp-seed" style="left:16.7%"></span><span class="dp-seed" style="left:19.7%"></span>
+                                <button type="button" class="dp-dot" style="left:26.8%" aria-label="EfficientNet-B0: mean 26.8% · seeds 44.1, 16.7, 19.7" data-tip="mean 26.8% · seeds 44.1, 16.7, 19.7"></button>
                             </div>
-                            <span class="dp-val">16.4%</span>
+                            <span class="dp-val">26.8%</span>
                         </div>
                     </div>
                     <div class="dp-axis" aria-hidden="true"><i></i><div class="dp-ticks"><span style="left:0">0%</span><span style="left:25%">25%</span><span style="left:50%">50%</span><span style="left:75%">75%</span><span style="left:100%">100%</span></div><i></i></div>
                     <figcaption>
                         <span class="fig-no">Fig. 3</span>
-                        Share of Grad-CAM attention inside the lung mask: mean with bootstrap 95% CI. Dashed line =
+                        Share of Grad-CAM attention inside the lung mask. Large dot = mean of 3 training seeds, small
+                        dots = individual seeds, bar = seed range. Dashed line =
                         lung share of the image (chance). On pneumonia X-rays the segmenter misses some consolidated
                         lung, so normal X-rays are the clean comparison; the ranking is the same on both.
                     </figcaption>
@@ -237,27 +243,27 @@
                         Different country, different scanners, adults instead of children.
                     </p>
                     <p>
-                        Every model loses about 0.2 AUC. ResNet18's lead on the pediatric set is statistically real,
-                        but it disappears here: MobileNetV2 ranks first (+0.015 AUC), though the 95% CI
-                        (−0.020 to +0.051) includes zero. The pediatric threshold doesn't transfer either. At 0.946,
+                        Every model loses 0.13–0.20 AUC. MobileNetV2 holds up best on average (0.822 vs 0.794 for
+                        ResNet18) and beats it in two of three seeds (−0.017, +0.078, +0.026). That's a trend, not
+                        proof, with three seeds. The pediatric threshold doesn't transfer either: at 0.946, the served
                         ResNet18 flags 80% of healthy adults.
                     </p>
                     <p>
-                        The honest reading: lung-focused attention didn't buy measurable robustness here, because the
-                        population shift swamps everything. MobileNetV2 is still the only model whose evidence a
-                        clinician could check.
+                        The honest reading: the model that looks at the lungs also degrades least, but the
+                        population shift hurts every model badly. More seeds or more external data would be needed
+                        to call the robustness gain real.
                     </p>
                 </div>
                 <div class="table-scroll">
                     <table>
-                        <caption>AUC with bootstrap 95% CI</caption>
+                        <caption>AUC, mean ± SD over 3 seeds</caption>
                         <thead>
                             <tr><th scope="col">Model</th><th scope="col" class="num">Pediatric</th><th scope="col" class="num">Adult NIH</th><th scope="col" class="num">Drop</th></tr>
                         </thead>
                         <tbody>
-                            <tr><th scope="row">ResNet18</th><td class="num">0.978 <span class="ci">0.967–0.987</span></td><td class="num">0.772 <span class="ci">0.735–0.808</span></td><td class="num">−0.206</td></tr>
-                            <tr><th scope="row">MobileNetV2</th><td class="num">0.968 <span class="ci">0.953–0.980</span></td><td class="num">0.786 <span class="ci">0.753–0.819</span></td><td class="num">−0.181</td></tr>
-                            <tr><th scope="row">EfficientNet-B0</th><td class="num">0.951 <span class="ci">0.933–0.968</span></td><td class="num">0.733 <span class="ci">0.695–0.771</span></td><td class="num">−0.218</td></tr>
+                            <tr><th scope="row">ResNet18</th><td class="num">0.954 <span class="ci">± 0.013</span></td><td class="num">0.794 <span class="ci">± 0.023</span></td><td class="num">−0.160</td></tr>
+                            <tr><th scope="row">MobileNetV2</th><td class="num">0.956 <span class="ci">± 0.025</span></td><td class="num">0.822 <span class="ci">± 0.024</span></td><td class="num">−0.134</td></tr>
+                            <tr><th scope="row">EfficientNet-B0</th><td class="num">0.960 <span class="ci">± 0.002</span></td><td class="num">0.758 <span class="ci">± 0.012</span></td><td class="num">−0.202</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -368,7 +374,7 @@
                 <h2>What this does not show</h2>
             </header>
             <ul class="limits">
-                <li><strong>One training run each.</strong> No repeated seeds, so the 1–3 point accuracy gaps between models may be partly noise.</li>
+                <li><strong>Three seeds per model.</strong> Enough to show the attention gap is stable and the AUC lead was luck; too few for significance tests between architectures.</li>
                 <li><strong>The external test mixes two shifts.</strong> NIH differs in hospital and in age (adults, mostly AP views), so we can't say which one causes the drop.</li>
                 <li><strong>Masks, not radiologists.</strong> Lung masks come from a model trained on adults. It misses some consolidated lung on pediatric pneumonia X-rays, which is why normal X-rays are the primary comparison.</li>
                 <li><strong>Not a medical device.</strong> No FDA or CE clearance. Do not use it for clinical decisions.</li>

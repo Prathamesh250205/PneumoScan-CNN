@@ -19,6 +19,8 @@
     th, td { text-align: left; padding: 3.5pt 6pt 3.5pt 0; border-bottom: 1px solid #e6e3db; }
     thead th { font: 500 7.5pt "IBM Plex Mono", monospace; color: #7a7f8c; border-bottom-color: #16181d; }
     td.n, th.n { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 8.4pt; }
+    td .s { color: #7a7f8c; font-size: 7.6pt; white-space: nowrap; }
+    td.n { white-space: nowrap; }
     tr.chance td { color: #7a7f8c; font-style: italic; }
     b { font-weight: 600; }
     figure { margin: 6pt 0 2pt; }
@@ -36,10 +38,10 @@
     <p class="meta">PneumoScan · project summary · live demo <a href="https://pneumoscan-nine.vercel.app">pneumoscan-nine.vercel.app</a> · code <a href="https://github.com/Prathamesh250205/PneumoScan-CNN">github.com/Prathamesh250205/PneumoScan-CNN</a></p>
 
     <p class="lede">
-        Three ImageNet-pretrained CNNs were fine-tuned to detect pneumonia in pediatric chest X-rays (Kermany et al., 5,856 images).
-        ResNet18 scored highest, but only 44% of its Grad-CAM attention fell on the lungs, barely above the 39% expected
-        by chance. MobileNetV2 was 2.2 points less accurate and put 71% there. On 656 adult X-rays from another hospital, every model
-        lost about 0.2 AUC and ResNet18's lead disappeared.
+        Three ImageNet-pretrained CNNs were fine-tuned to detect pneumonia in pediatric chest X-rays (Kermany et al.), each with
+        three training seeds. ResNet18 was the most accurate (88%), yet only 47% of its Grad-CAM attention fell on the lungs, barely
+        above the 39% expected by chance. MobileNetV2 put 67% there, in every seed. All three rank cases equally well (AUC 0.954–0.960).
+        On 656 adult X-rays from another hospital every model degraded, and MobileNetV2 degraded least.
     </p>
 
     <figure>
@@ -48,57 +50,58 @@
             mediastinum. MobileNetV2 correctly predicts normal (P = 0.09) with attention on the lung.</figcaption>
     </figure>
 
-    <h2>1 · In-distribution performance</h2>
+    <h2>1 · In-distribution performance (mean ± SD over 3 seeds)</h2>
     <table>
-        <thead><tr><th>Model</th><th class="n">Accuracy</th><th class="n">F1</th><th class="n">AUC (95% CI)</th><th class="n">Sens.</th><th class="n">Spec.</th><th class="n">Spec. at 95% sens.*</th></tr></thead>
+        <thead><tr><th>Model</th><th class="n">Accuracy</th><th class="n">F1</th><th class="n">AUC</th><th class="n">Sens.</th><th class="n">Spec.</th></tr></thead>
         <tbody>
-            <tr><td><b>ResNet18</b> (served)</td><td class="n">87.8%</td><td class="n">0.911</td><td class="n">0.978 (0.967–0.987)</td><td class="n">0.997</td><td class="n">0.679</td><td class="n">0.882</td></tr>
-            <tr><td><b>MobileNetV2</b> (served)</td><td class="n">85.6%</td><td class="n">0.896</td><td class="n">0.968 (0.953–0.980)</td><td class="n">0.995</td><td class="n">0.624</td><td class="n">0.863</td></tr>
-            <tr><td><b>EfficientNet-B0</b></td><td class="n">84.8%</td><td class="n">0.891</td><td class="n">0.951 (0.933–0.968)</td><td class="n">0.997</td><td class="n">0.598</td><td class="n">0.790</td></tr>
+            <tr><td><b>ResNet18</b></td><td class="n"><b>88.2 ± 2.9%</b></td><td class="n">0.913 ± 0.019</td><td class="n">0.954 ± 0.013</td><td class="n">0.989</td><td class="n">0.704 ± 0.083</td></tr>
+            <tr><td><b>MobileNetV2</b></td><td class="n">83.9 ± 2.6%</td><td class="n">0.886 ± 0.016</td><td class="n">0.956 ± 0.025</td><td class="n">0.996</td><td class="n">0.578 ± 0.072</td></tr>
+            <tr><td><b>EfficientNet-B0</b></td><td class="n">84.3 ± 0.6%</td><td class="n">0.888 ± 0.004</td><td class="n">0.960 ± 0.002</td><td class="n">0.996</td><td class="n">0.588 ± 0.017</td></tr>
         </tbody>
     </table>
-    <p class="note">Kermany test split, n = 624 (234 normal, 390 pneumonia), threshold 0.5 unless noted. *Threshold chosen for 95% sensitivity by
-        stratified 2-fold cross-validation (50 splits). For ResNet18 this is t = 0.946, used by the live demo.</p>
+    <p class="note">Kermany test split, n = 624 (234 normal, 390 pneumonia), threshold 0.5. The original single run gave ResNet18 0.978 AUC;
+        retraining gives 0.940–0.966, so that lead was a lucky draw. For the served ResNet18, a threshold chosen for 95% sensitivity
+        by cross-validation (t = 0.946, used by the live demo) raises specificity from 0.68 to 0.88.</p>
 
     <h2>2 · Where the models look</h2>
     <p>Lungs, clavicles and scapulae were segmented with torchxrayvision's ChestX-Det PSPNet. For each image we measured the share of Grad-CAM
         energy (last conv block, predicted class) inside the lung mask. Normal X-rays are the clean comparison, because the adult-trained segmenter
         drops some consolidated lung on pediatric pneumonia X-rays.</p>
     <table>
-        <thead><tr><th>Normal X-rays</th><th class="n">Pediatric: on lungs (95% CI)</th><th class="n">Peak in lung</th><th class="n">Adult NIH: on lungs (95% CI)</th></tr></thead>
+        <thead><tr><th>Normal X-rays · mean ± SD (seeds)</th><th class="n">Pediatric, n = 234</th><th class="n">Adult NIH, n = 150</th></tr></thead>
         <tbody>
-            <tr class="chance"><td>chance (lung share of image)</td><td class="n">38.5%</td><td class="n"></td><td class="n">33.4%</td></tr>
-            <tr><td><b>ResNet18</b></td><td class="n">43.9% (42.8–45.0)</td><td class="n">21%</td><td class="n">38.7% (36.8–40.6)</td></tr>
-            <tr><td><b>MobileNetV2</b></td><td class="n"><b>71.2%</b> (70.1–72.3)</td><td class="n"><b>60%</b></td><td class="n"><b>58.2%</b> (56.3–60.0)</td></tr>
-            <tr><td><b>EfficientNet-B0</b></td><td class="n">40.7% (38.1–43.4)</td><td class="n">33%</td><td class="n">16.4% (14.1–19.0)</td></tr>
+            <tr class="chance"><td>chance (lung share of image)</td><td class="n">38.5%</td><td class="n">33.4%</td></tr>
+            <tr><td><b>ResNet18</b></td><td class="n">46.8 ± 5.5% <span class="s">(47.8 · 41.0 · 51.8)</span></td><td class="n">39.0 ± 5.3% <span class="s">(38.2 · 34.2 · 44.7)</span></td></tr>
+            <tr><td><b>MobileNetV2</b></td><td class="n"><b>67.4 ± 3.7%</b> <span class="s">(68.6 · 63.3 · 70.3)</span></td><td class="n"><b>58.3 ± 2.3%</b> <span class="s">(55.7 · 60.1 · 59.1)</span></td></tr>
+            <tr><td><b>EfficientNet-B0</b></td><td class="n">46.9 ± 7.1% <span class="s">(55.0 · 41.8 · 43.9)</span></td><td class="n">26.8 ± 15.0% <span class="s">(44.1 · 16.7 · 19.7)</span></td></tr>
         </tbody>
     </table>
-    <p>MobileNetV2 − ResNet18: <b>+27.3 points</b> on pediatric (CI +26.0 to +28.6) and +19.6 on adult X-rays. A correction to this project's
-        first, visual claim: ResNet18's attention on the clavicles and scapulae (4.7%) is <i>below</i> their 6.4% share of the image. Its attention
-        isn't on the shoulders. It's spread over the neck, mediastinum and borders, and mostly not on the lungs.</p>
+    <p><b>Every MobileNetV2 seed beats every ResNet18 seed</b> on both datasets (pediatric gap +20.8, +22.3, +18.5 points).
+        Correction to this project's first, visual claim: the served ResNet18's attention on clavicles and scapulae (4.7%) is below
+        their 6.4% share of the image. It isn't on the shoulders; it's just not on the lungs.</p>
 
     <h2 class="break">3 · External test: another hospital, adult patients</h2>
     <p>656 X-rays from NIH ChestX-ray14 (batch 7) with radiologist-adjudicated labels (Majkowska et al., 2020): 364 airspace opacity,
         292 with all expert labels negative, mostly AP views.</p>
     <table>
-        <thead><tr><th>Model</th><th class="n">Pediatric AUC</th><th class="n">NIH AUC (95% CI)</th><th class="n">Drop (95% CI)</th></tr></thead>
+        <thead><tr><th>Model (mean ± SD, 3 seeds)</th><th class="n">Pediatric AUC</th><th class="n">NIH AUC</th><th class="n">Drop</th></tr></thead>
         <tbody>
-            <tr><td><b>ResNet18</b></td><td class="n">0.978</td><td class="n">0.772 (0.735–0.808)</td><td class="n">−0.206 (−0.246 to −0.170)</td></tr>
-            <tr><td><b>MobileNetV2</b></td><td class="n">0.968</td><td class="n"><b>0.786</b> (0.753–0.819)</td><td class="n"><b>−0.181</b> (−0.217 to −0.146)</td></tr>
-            <tr><td><b>EfficientNet-B0</b></td><td class="n">0.951</td><td class="n">0.733 (0.695–0.771)</td><td class="n">−0.218 (−0.259 to −0.178)</td></tr>
+            <tr><td><b>ResNet18</b></td><td class="n">0.954 ± 0.013</td><td class="n">0.794 ± 0.023</td><td class="n">−0.160</td></tr>
+            <tr><td><b>MobileNetV2</b></td><td class="n">0.956 ± 0.025</td><td class="n"><b>0.822 ± 0.024</b></td><td class="n"><b>−0.134</b></td></tr>
+            <tr><td><b>EfficientNet-B0</b></td><td class="n">0.960 ± 0.002</td><td class="n">0.758 ± 0.012</td><td class="n">−0.202</td></tr>
         </tbody>
     </table>
     <ul>
-        <li>ResNet18's pediatric lead is significant (paired bootstrap ΔAUC −0.011, CI −0.019 to −0.003 for MobileNetV2 − ResNet18) but
-            vanishes externally. MobileNetV2 ranks first, though +0.015 (CI −0.020 to +0.051) is not significant.</li>
-        <li>Thresholds don't transfer. At the pediatric 0.946, ResNet18 flags 80% of healthy adults (specificity 0.199).</li>
-        <li>Lung-focused attention did not buy measurable robustness under this shift, which mixes a new hospital with a new age group.</li>
+        <li>The lung-focused model degrades least on average. Seed by seed, MobileNetV2 − ResNet18 NIH AUC is −0.017, +0.078 and +0.026:
+            a trend, not a significant result, with three seeds.</li>
+        <li>Thresholds don't transfer. At the pediatric 0.946, the served ResNet18 flags 80% of healthy adults (specificity 0.199).</li>
+        <li>The shift mixes a new hospital with a new age group, and it hurts every model.</li>
     </ul>
 
     <h2>Method and system</h2>
     <div class="cols">
         <ul>
-            <li><b>Training:</b> PyTorch, ImageNet weights, 2-class head, Adam 1e-4, 10 epochs, flips and ±10° rotation (Kaggle T4).</li>
+            <li><b>Training:</b> PyTorch, ImageNet weights, 2-class head, Adam 1e-4, 10 epochs, flips and ±10° rotation; 3 seeds per model (Kaggle T4).</li>
             <li><b>Preprocessing:</b> grayscale → 3 channels → 224² bilinear → ImageNet normalisation. Identical in training and serving.</li>
             <li><b>Statistics:</b> stratified bootstrap (2,000 draws), paired across models on the same images.</li>
         </ul>
@@ -111,7 +114,7 @@
 
     <h2>Limitations</h2>
     <ul>
-        <li>One training run per model, so 1–3 point gaps between models may be partly seed noise.</li>
+        <li>Three seeds per model: enough to show stability, too few for formal tests between architectures.</li>
         <li>The external test mixes a hospital shift with an age shift (children → adults).</li>
         <li>Lung masks come from a segmentation model, not radiologists.</li>
         <li>The validation split has 16 images, so operating points were cross-validated on the test set and are optimistic for new sites.</li>

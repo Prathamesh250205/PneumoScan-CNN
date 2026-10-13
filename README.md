@@ -13,7 +13,7 @@
 
 [![PneumoScan live demo: verdict and side-by-side Grad-CAM heatmaps](docs/screenshot_demo.webp)](https://pneumoscan-nine.vercel.app/#demo)
 
-Three ImageNet-pretrained CNNs (ResNet18, MobileNetV2, EfficientNet-B0) fine-tuned to detect pneumonia in pediatric chest X-rays. The most accurate one, ResNet18, puts barely more of its Grad-CAM attention on the lungs than chance would. MobileNetV2 is 2.2 points less accurate and puts 71% there. On an external adult dataset, every model loses about 0.2 AUC, and ResNet18's in-distribution lead disappears.
+Three ImageNet-pretrained CNNs (ResNet18, MobileNetV2, EfficientNet-B0) fine-tuned to detect pneumonia in pediatric chest X-rays. Each model was trained with three seeds. The most accurate one, ResNet18 (88%), puts barely more of its Grad-CAM attention on the lungs than chance would (47% vs 39%). MobileNetV2 puts 67% there, in every seed. All three rank cases equally well (AUC 0.954–0.960). On an external adult dataset every model degrades, and MobileNetV2 degrades least.
 
 > Research demonstration only. Not a medical device and not for clinical use.
 
@@ -23,19 +23,22 @@ Three ImageNet-pretrained CNNs (ResNet18, MobileNetV2, EfficientNet-B0) fine-tun
 
 ## Results
 
+Every architecture was trained three times (seeds 0, 1, 2) with the original notebook's protocol ([`scripts/train_seeds.py`](scripts/train_seeds.py), Kaggle T4). Numbers are mean ± SD across seeds unless marked *served*. The served models come from the original single run.
+
 ### 1. In-distribution (Kermany et al. test split, n = 624)
 
-| Model | Accuracy | F1 | AUC (95% CI) | Sensitivity | Specificity |
+| Model | Accuracy | F1 | AUC | Sensitivity | Specificity |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| ResNet18 (served) | **87.8%** | **0.911** | **0.978** (0.967–0.987) | 0.997 | 0.679 |
-| MobileNetV2 (served) | 85.6% | 0.896 | 0.968 (0.953–0.980) | 0.995 | 0.624 |
-| EfficientNet-B0 | 84.8% | 0.891 | 0.951 (0.933–0.968) | 0.997 | 0.598 |
+| ResNet18 | **88.2 ± 2.9%** | **0.913 ± 0.019** | 0.954 ± 0.013 | 0.989 ± 0.005 | **0.704 ± 0.083** |
+| MobileNetV2 | 83.9 ± 2.6% | 0.886 ± 0.016 | 0.956 ± 0.025 | 0.996 ± 0.001 | 0.578 ± 0.072 |
+| EfficientNet-B0 | 84.3 ± 0.6% | 0.888 ± 0.004 | **0.960 ± 0.002** | 0.996 ± 0.003 | 0.588 ± 0.017 |
 
-Threshold 0.5. ResNet18's AUC lead over MobileNetV2 is small but significant (paired bootstrap: −0.011, 95% CI −0.019 to −0.003).
+- ResNet18's accuracy lead is real across seeds. At a 0.5 threshold it mostly reflects how many healthy children each model flags.
+- **The AUC lead was not real.** The original single run gave ResNet18 0.978 AUC (served model), but retraining gives 0.940, 0.956 and 0.966. All three architectures tie at 0.954–0.960.
 
-**Operating point.** At 0.5 all three flag about a third of healthy children. Choosing the threshold for 95% sensitivity (stratified 2-fold CV, 50 splits) gives:
+**Operating point (served models).** At 0.5 all models flag 30–42% of healthy children. Choosing the threshold for 95% sensitivity (stratified 2-fold CV, 50 splits):
 
-| Model | Threshold | Sensitivity | Specificity |
+| Served model | Threshold | Sensitivity | Specificity |
 | :--- | :---: | :---: | :---: |
 | ResNet18 | 0.946 | 0.949 ± 0.021 | **0.882 ± 0.024** |
 | MobileNetV2 | 0.951 | 0.948 ± 0.025 | 0.863 ± 0.032 |
@@ -45,36 +48,40 @@ The demo uses ResNet18 at 0.946.
 
 ### 2. Where the models look
 
-For each test image, torchxrayvision's ChestX-Det PSPNet segments the lungs, clavicles and scapulae. We measure the share of Grad-CAM energy (last conv block, predicted class) that falls inside each mask. If attention were spread at random, the lung share would equal the lung's share of the image (the "chance" column).
+For each image, torchxrayvision's ChestX-Det PSPNet segments the lungs, clavicles and scapulae. We measure the share of Grad-CAM energy (last conv block, predicted class) inside the lung mask. If attention were spread at random, it would equal the lung's share of the image ("chance").
 
-**Normal X-rays** (masks are reliable here; on pneumonia X-rays the adult-trained segmenter drops some consolidated lung):
+Normal X-rays are the clean comparison. On pneumonia X-rays the adult-trained segmenter drops some consolidated lung.
 
-| Model | Pediatric: on lungs (95% CI) | Pediatric: peak in lung | Adult NIH: on lungs (95% CI) |
-| :--- | :---: | :---: | :---: |
-| *chance (lung area)* | *38.5%* | | *33.4%* |
-| ResNet18 | 43.9% (42.8–45.0) | 21% | 38.7% (36.8–40.6) |
-| MobileNetV2 | **71.2%** (70.1–72.3) | **60%** | **58.2%** (56.3–60.0) |
-| EfficientNet-B0 | 40.7% (38.1–43.4) | 33% | 16.4% (14.1–19.0) |
+| Normal X-rays | Pediatric (n = 234) | Per seed | Adult NIH (n = 150) | Per seed |
+| :--- | :---: | :---: | :---: | :---: |
+| *chance (lung area)* | *38.5%* | | *33.4%* | |
+| ResNet18 | 46.8 ± 5.5% | 47.8 · 41.0 · 51.8 | 39.0 ± 5.3% | 38.2 · 34.2 · 44.7 |
+| MobileNetV2 | **67.4 ± 3.7%** | 68.6 · 63.3 · 70.3 | **58.3 ± 2.3%** | 55.7 · 60.1 · 59.1 |
+| EfficientNet-B0 | 46.9 ± 7.1% | 55.0 · 41.8 · 43.9 | 26.8 ± 15.0% | 44.1 · 16.7 · 19.7 |
 
-MobileNetV2 − ResNet18: **+27.3 points** (pediatric, CI +26.0 to +28.6) and +19.6 (NIH, CI +18.1 to +21.0). On pediatric pneumonia X-rays the gap is +30.6.
+**Every MobileNetV2 seed puts more attention on the lungs than every ResNet18 seed**, on both datasets. Seed by seed, MobileNetV2 − ResNet18 is +20.8, +22.3 and +18.5 points on pediatric X-rays.
 
-A correction to this project's original claim. By eye, ResNet18 seemed to focus on the shoulders. Measured, its attention on clavicles and scapulae (4.7%) is below their 6.4% share of the image. Its attention isn't on the shoulders; it's spread over the neck, mediastinum and image borders, and mostly not on the lungs.
+Per-image detail for the served models ([`results/kermany/`](results/kermany), [`results/nih/`](results/nih)):
+- ResNet18 43.9% vs MobileNetV2 71.2% on pediatric normals. The paired difference is +27.3 points (95% CI +26.0 to +28.6).
+- The strongest point of the heatmap lands in the lung 21% vs 60% of the time.
+
+A correction to this project's original claim. By eye, ResNet18 seemed to focus on the shoulders. Measured on the served model, its attention on clavicles and scapulae (4.7%) is below their 6.4% share of the image. Its attention isn't on the shoulders; it's spread over the neck, mediastinum and image borders, and mostly not on the lungs.
 
 ### 3. External test (NIH ChestX-ray14, adult, n = 656)
 
 Batch 7 of NIH ChestX-ray14, restricted to images with radiologist-adjudicated labels from Majkowska et al. (Radiology, 2020): 364 *airspace opacity*, 292 with all four expert labels negative. Mostly AP views.
 
-| Model | Pediatric AUC | NIH AUC (95% CI) | Drop (95% CI) |
+| Model | Pediatric AUC | NIH AUC | Drop |
 | :--- | :---: | :---: | :---: |
-| ResNet18 | 0.978 | 0.772 (0.735–0.808) | −0.206 (−0.246 to −0.170) |
-| MobileNetV2 | 0.968 | **0.786** (0.753–0.819) | **−0.181** (−0.217 to −0.146) |
-| EfficientNet-B0 | 0.951 | 0.733 (0.695–0.771) | −0.218 (−0.259 to −0.178) |
+| ResNet18 | 0.954 ± 0.013 | 0.794 ± 0.023 | −0.160 |
+| MobileNetV2 | 0.956 ± 0.025 | **0.822 ± 0.024** | **−0.134** |
+| EfficientNet-B0 | 0.960 ± 0.002 | 0.758 ± 0.012 | −0.202 |
 
-- ResNet18's lead vanishes. MobileNetV2 ranks first, but MobileNetV2 − ResNet18 = +0.015 (CI −0.020 to +0.051) is not significant, and neither is the difference in drops (+0.025, CI −0.011 to +0.063).
-- The pediatric threshold doesn't transfer. At 0.946, ResNet18 flags 80% of healthy adults (specificity 0.199).
-- Takeaway: lung-focused attention didn't produce measurable robustness under this shift, which mixes a new hospital with a new age group. It still makes MobileNetV2 the only model whose evidence can be checked against anatomy.
+- MobileNetV2, the model that looks at the lungs, degrades least on average. Seed by seed, MobileNetV2 − ResNet18 NIH AUC is −0.017, +0.078 and +0.026. That's a trend, not a significant result, with three seeds.
+- The pediatric threshold doesn't transfer. At 0.946, the served ResNet18 flags 80% of healthy adults (specificity 0.199).
+- The shift mixes a new hospital with a new age group, and it hurts every model badly.
 
-Raw outputs: [`results/`](results) (per-image probabilities, per-image attention scores, AUC bootstrap).
+Raw outputs: [`results/`](results), which holds per-image probabilities for every model and seed, per-image attention scores, and the bootstrap comparison for the served models.
 
 ## Live demo: [pneumoscan-nine.vercel.app](https://pneumoscan-nine.vercel.app)
 
@@ -103,7 +110,9 @@ pip install torchxrayvision scipy pandas playwright pytest && playwright install
 | Train (Kaggle T4, ~10 epochs/model) | [`notebooks/chest-x-ray.ipynb`](notebooks/chest-x-ray.ipynb) |
 | Export to ONNX + metrics + operating point | `python scripts/export_onnx.py resnet18_best.pth --arch resnet18 --test-dir chest_xray/test --probs-csv results/kermany_resnet18.csv` |
 | Build NIH external set | download `images_007.tar.gz` from the [NIH Box](https://nihcc.app.box.com/v/ChestXray-NIHCC), extract, then `python scripts/prepare_nih.py images nih_test` |
-| AUC comparison (paired bootstrap) | `python scripts/compare_auc.py results` |
+| Retrain with seeds (Kaggle GPU) | [`notebooks/train_seeds_kaggle.ipynb`](notebooks/train_seeds_kaggle.ipynb), or `python scripts/train_seeds.py --data-dir chest_xray` |
+| Score seed checkpoints (NIH + attention) | `python scripts/seed_analysis.py --ckpt-dir checkpoints --kermany-test chest_xray/test --nih-dir nih_test --mask-cache masks.npz` |
+| AUC comparison, served models (paired bootstrap) | `python scripts/compare_auc.py results` |
 | Attention analysis | `python scripts/gradcam_overlap.py --weights-dir <dir with *_best.pth> --test-dir chest_xray/test --out results/kermany` |
 | Summary PDF (from `docs/summary.html`) | `python scripts/make_summary_pdf.py` |
 | Run locally | `uvicorn main:app --port 8000` |
@@ -113,7 +122,7 @@ Pushes to `main` deploy to Vercel automatically at **https://pneumoscan-nine.ver
 
 ## Limitations
 
-- **One training run per model.** Accuracy gaps of 1–3 points between models may be partly seed noise.
+- **Three seeds per model.** Enough to show the attention gap is stable and the original AUC lead was luck; too few for formal significance tests between architectures.
 - **The external test confounds two shifts:** a different hospital and adults instead of children (and mostly AP views).
 - **Lung masks come from a model trained on adults,** not radiologist annotation. It undercounts consolidated lung on pediatric pneumonia X-rays, which is why normal X-rays are the primary comparison.
 - **The validation split is 16 images.** Operating points were chosen by cross-validation on the test set, so they're optimistic for a truly new site, as the NIH result shows.
