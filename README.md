@@ -85,6 +85,7 @@ Raw outputs: [`results/`](results), which holds per-image probabilities for ever
 
 ## Live demo: [pneumoscan-nine.vercel.app](https://pneumoscan-nine.vercel.app)
 
+- The landing page (`/`) has the 3D exploded hero and a WebGL attention landscape; the full report and the demo live at [`/research.html`](https://pneumoscan-nine.vercel.app/research.html).
 - Upload an X-ray, or click a bundled test-set sample.
 - Both served models return P(pneumonia) and a Grad-CAM overlay, shown side by side.
 - The heatmaps are exact Grad-CAM at no extra cost. All three heads are global-average-pool → linear, so Grad-CAM on the last conv block equals the class activation map `Σ_k W[c,k]·A_k`. The ONNX graphs output it directly (verified correlation = 1.0 against autograd Grad-CAM).

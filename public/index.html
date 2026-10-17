@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PneumoScan — Accuracy vs. Interpretability in Chest X-Ray CNNs</title>
+    <title>PneumoScan: where pneumonia CNNs look</title>
     <meta name="description" content="A comparison of ResNet18, MobileNetV2 and EfficientNet-B0 for pediatric pneumonia screening, and what Grad-CAM reveals about where each model looks.">
     <meta property="og:title" content="The most accurate model was looking at the wrong thing">
     <meta property="og:description" content="ResNet18 vs MobileNetV2 vs EfficientNet-B0 on 5,856 pediatric chest X-rays, audited with Grad-CAM.">
@@ -14,29 +14,37 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
-    <script>document.documentElement.classList.add('js')</script>
+    <script>
+        document.documentElement.classList.add('js');
+        try { const t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+    </script>
+    <script type="importmap">{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
-    <a class="skip" href="#demo">Skip to demo</a>
+    <a class="skip" href="#main">Skip to content</a>
 
     <header class="nav">
         <div class="wrap nav-inner">
-            <a class="wordmark" href="#top">PneumoScan</a>
+            <a class="wordmark" href="/">PneumoScan</a>
             <nav aria-label="Sections">
-                <a href="#findings">Findings</a>
-                <a href="#attention">Attention</a>
-                <a href="#external">External test</a>
-                <a href="#demo">Demo</a>
-                <a href="#method">Method</a>
-                <a href="#limitations">Limitations</a>
+                <a href="/" aria-current="page">Overview</a>
+                <a href="/research.html#findings">Findings</a>
+                <a href="/research.html#attention">Attention</a>
+                <a href="/research.html#external">External test</a>
+                <a href="/research.html#demo">Demo</a>
+                <a href="https://github.com/Prathamesh250205/PneumoScan-CNN">Code</a>
             </nav>
             <div class="status" id="status" role="status">
                 <span class="dot"></span><span class="status-text">Connecting…</span>
             </div>
+            <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Switch colour theme">
+                <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.5 1.5M17.2 17.2l1.5 1.5M5.3 18.7l1.5-1.5M17.2 6.8l1.5-1.5"/></svg>
+                <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+            </button>
         </div>
     </header>
 
-    <main id="top">
+    <main id="main">
         <section class="hero wrap">
             <div class="hero-grid">
                 <div class="hero-copy">
@@ -48,8 +56,8 @@
                         barely above the 39% you'd expect by chance. MobileNetV2 put 67% there, in every seed.
                     </p>
                     <div class="actions">
-                        <a class="btn btn-primary" href="#demo">Try the classifier</a>
-                        <a class="btn btn-ghost" href="/project_summary.pdf" download>Download summary (PDF)</a>
+                        <a class="btn btn-primary" href="/research.html#demo">Try the live demo</a>
+                        <a class="btn btn-ghost" href="/research.html">Read the research</a>
                     </div>
                 </div>
 
@@ -81,328 +89,65 @@
             </dl>
         </section>
 
-        <figure class="figure wrap">
-            <div class="plate">
-                <img src="/images/gradcam_normal_example.webp" width="2380" height="420"
-                     alt="A normal chest X-ray beside Grad-CAM heatmaps from three models. ResNet18 predicts pneumonia at 0.83 while focusing on the neck and collarbones; MobileNetV2 predicts 0.09 with attention over the lung; EfficientNet-B0 predicts 1.00 with attention along the top edge.">
-            </div>
-            <figcaption>
-                <span class="fig-no">Fig. 1</span>
-                A <em>normal</em> X-ray. ResNet18 calls it pneumonia (P = 0.83) while attending to the neck and
-                clavicles. MobileNetV2 correctly calls it normal (P = 0.09). EfficientNet-B0 fixates on the image border.
-            </figcaption>
-        </figure>
-
-        <section class="section wrap" id="findings">
+        <section class="section wrap" id="glance">
             <header class="section-head">
-                <p class="eyebrow">01 · Findings</p>
-                <h2>Accuracy alone picks the wrong model</h2>
+                <p class="eyebrow">At a glance</p>
+                <h2>Same scores. Different evidence.</h2>
             </header>
-
-            <div class="cols">
-                <div class="prose">
-                    <p>
-                        Averaged over three training seeds, ResNet18 is the most accurate model (88.2%). Looking
-                        only at accuracy, it's the model you would ship.
-                    </p>
-                    <p>
-                        Accuracy at a 0.5 cut-off mostly reflects how many healthy children a model flags, though.
-                        Threshold-free AUC ties all three at 0.954–0.960. Our first single run had ResNet18 at
-                        0.978 AUC; retraining showed that was a lucky draw (0.940–0.966 across seeds).
-                    </p>
-                    <p>
-                        Grad-CAM tells a different story. In Figs. 1 and 2, ResNet18's heatmaps spread over the
-                        neck, mediastinum and image edges, while MobileNetV2's sit on lung tissue, where a
-                        radiologist looks. <a href="#attention">Section 02</a> measures this over the whole test set.
-                    </p>
-                    <p>
-                        All three over-call pneumonia at the default 0.5 threshold. Sensitivity is near perfect
-                        (above 0.98), but 30–42% of healthy children get flagged. For the served ResNet18,
-                        choosing the threshold for 95% sensitivity instead (0.946, picked by cross-validation)
-                        raises specificity from 0.68 to 0.88. The live demo uses that threshold.
-                    </p>
-                </div>
-
-                <div class="table-scroll">
-                    <table>
-                        <caption>Test set, n = 624. Mean ± SD over 3 seeds, threshold 0.5. Lung attention on normal X-rays (chance 39%).</caption>
-                        <thead>
-                            <tr><th scope="col">Model</th><th scope="col" class="num">Accuracy</th><th scope="col" class="num">AUC</th><th scope="col" class="num">Spec.</th><th scope="col" class="num">On lungs</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <th scope="row">ResNet18</th>
-                                <td class="num">88.2% <span class="ci">± 2.9</span></td><td class="num">0.954 <span class="ci">± 0.013</span></td><td class="num">0.704 <span class="ci">± 0.083</span></td>
-                                <td class="num"><span class="pill pill-bad">47%</span></td>
-                            </tr>
-                            <tr>
-                                <th scope="row">MobileNetV2</th>
-                                <td class="num">83.9% <span class="ci">± 2.6</span></td><td class="num">0.956 <span class="ci">± 0.025</span></td><td class="num">0.578 <span class="ci">± 0.072</span></td>
-                                <td class="num"><span class="pill pill-good">67%</span></td>
-                            </tr>
-                            <tr>
-                                <th scope="row">EfficientNet-B0</th>
-                                <td class="num">84.3% <span class="ci">± 0.6</span></td><td class="num">0.960 <span class="ci">± 0.002</span></td><td class="num">0.588 <span class="ci">± 0.017</span></td>
-                                <td class="num"><span class="pill pill-mid">47%</span></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <figure class="figure">
-                <div class="plate">
-                    <img src="/images/gradcam_pneumonia_example.webp" width="2383" height="486" loading="lazy"
-                         alt="A pneumonia chest X-ray beside Grad-CAM heatmaps. All three models predict pneumonia at 1.00; ResNet18 attends to the upper-right shoulder, MobileNetV2 to the left mid-lung, EfficientNet-B0 to the top border.">
-                </div>
-                <figcaption>
-                    <span class="fig-no">Fig. 2</span>
-                    A <em>pneumonia</em> X-ray. All three models are confident (P = 1.00), but only MobileNetV2's
-                    attention concentrates on lung tissue. ResNet18 gets this one right without looking where the disease is.
-                </figcaption>
-            </figure>
-        </section>
-
-        <section class="section wrap" id="attention">
-            <header class="section-head">
-                <p class="eyebrow">02 · Attention, measured</p>
-                <h2>Only one model reliably looks at the lungs</h2>
-            </header>
-            <div class="cols">
-                <div class="prose">
-                    <p>
-                        For every test image, a pretrained chest X-ray segmentation model (torchxrayvision's
-                        ChestX-Det PSPNet) outlines the lungs, clavicles and scapulae. We then measure what share
-                        of each model's Grad-CAM attention falls inside the lungs. Attention spread at random would
-                        score the lungs' share of the image, shown as the dashed line.
-                    </p>
-                    <p>
-                        Across three training seeds, MobileNetV2 puts 67% of its attention on the lungs of normal
-                        children. ResNet18 manages 47% and EfficientNet-B0 47%. Every MobileNetV2 seed beats every
-                        ResNet18 seed, on children and on adult NIH X-rays (58% vs 39%).
-                    </p>
-                    <p>
-                        One correction to how this project started. By eye, ResNet18 seemed to lock onto the
-                        shoulders. Measured on the served model, its attention on clavicles and scapulae (4.7%) is below their 6.4% share
-                        of the image. Its attention isn't on the shoulders; it's simply not on the lungs.
-                    </p>
-                </div>
-                <figure class="dotplot" aria-label="Share of Grad-CAM attention inside the lungs, by model and test set">
-                    <div class="dp-group" style="--chance:38.5%">
-                        <p class="dp-title">Pediatric test set · normal X-rays (n = 234)</p>
-                        <div class="dp-row">
-                            <span class="dp-label">ResNet18</span>
-                            <div class="dp-track">
-                                <span class="dp-ci" style="left:41.0%;width:10.8%"></span><span class="dp-seed" style="left:47.8%"></span><span class="dp-seed" style="left:41.0%"></span><span class="dp-seed" style="left:51.8%"></span>
-                                <button type="button" class="dp-dot" style="left:46.8%" aria-label="ResNet18: mean 46.8% · seeds 47.8, 41.0, 51.8" data-tip="mean 46.8% · seeds 47.8, 41.0, 51.8"></button>
-                            </div>
-                            <span class="dp-val">46.8%</span>
-                        </div>
-                        <div class="dp-row">
-                            <span class="dp-label">MobileNetV2</span>
-                            <div class="dp-track">
-                                <span class="dp-ci" style="left:63.3%;width:7.0%"></span><span class="dp-seed" style="left:68.6%"></span><span class="dp-seed" style="left:63.3%"></span><span class="dp-seed" style="left:70.3%"></span>
-                                <button type="button" class="dp-dot" style="left:67.4%" aria-label="MobileNetV2: mean 67.4% · seeds 68.6, 63.3, 70.3" data-tip="mean 67.4% · seeds 68.6, 63.3, 70.3"></button>
-                            </div>
-                            <span class="dp-val">67.4%</span>
-                        </div>
-                        <div class="dp-row">
-                            <span class="dp-label">EfficientNet-B0</span>
-                            <div class="dp-track">
-                                <span class="dp-ci" style="left:41.8%;width:13.2%"></span><span class="dp-seed" style="left:55.0%"></span><span class="dp-seed" style="left:41.8%"></span><span class="dp-seed" style="left:43.9%"></span>
-                                <button type="button" class="dp-dot" style="left:46.9%" aria-label="EfficientNet-B0: mean 46.9% · seeds 55.0, 41.8, 43.9" data-tip="mean 46.9% · seeds 55.0, 41.8, 43.9"></button>
-                            </div>
-                            <span class="dp-val">46.9%</span>
-                        </div>
-                    </div>
-                    <div class="dp-group" style="--chance:33.4%">
-                        <p class="dp-title">Adult NIH set · normal X-rays (n = 150)</p>
-                        <div class="dp-row">
-                            <span class="dp-label">ResNet18</span>
-                            <div class="dp-track">
-                                <span class="dp-ci" style="left:34.2%;width:10.5%"></span><span class="dp-seed" style="left:38.2%"></span><span class="dp-seed" style="left:34.2%"></span><span class="dp-seed" style="left:44.7%"></span>
-                                <button type="button" class="dp-dot" style="left:39.0%" aria-label="ResNet18: mean 39.0% · seeds 38.2, 34.2, 44.7" data-tip="mean 39.0% · seeds 38.2, 34.2, 44.7"></button>
-                            </div>
-                            <span class="dp-val">39.0%</span>
-                        </div>
-                        <div class="dp-row">
-                            <span class="dp-label">MobileNetV2</span>
-                            <div class="dp-track">
-                                <span class="dp-ci" style="left:55.7%;width:4.4%"></span><span class="dp-seed" style="left:55.7%"></span><span class="dp-seed" style="left:60.1%"></span><span class="dp-seed" style="left:59.1%"></span>
-                                <button type="button" class="dp-dot" style="left:58.3%" aria-label="MobileNetV2: mean 58.3% · seeds 55.7, 60.1, 59.1" data-tip="mean 58.3% · seeds 55.7, 60.1, 59.1"></button>
-                            </div>
-                            <span class="dp-val">58.3%</span>
-                        </div>
-                        <div class="dp-row">
-                            <span class="dp-label">EfficientNet-B0</span>
-                            <div class="dp-track">
-                                <span class="dp-ci" style="left:16.7%;width:27.4%"></span><span class="dp-seed" style="left:44.1%"></span><span class="dp-seed" style="left:16.7%"></span><span class="dp-seed" style="left:19.7%"></span>
-                                <button type="button" class="dp-dot" style="left:26.8%" aria-label="EfficientNet-B0: mean 26.8% · seeds 44.1, 16.7, 19.7" data-tip="mean 26.8% · seeds 44.1, 16.7, 19.7"></button>
-                            </div>
-                            <span class="dp-val">26.8%</span>
-                        </div>
-                    </div>
-                    <div class="dp-axis" aria-hidden="true"><i></i><div class="dp-ticks"><span style="left:0">0%</span><span style="left:25%">25%</span><span style="left:50%">50%</span><span style="left:75%">75%</span><span style="left:100%">100%</span></div><i></i></div>
-                    <figcaption>
-                        <span class="fig-no">Fig. 3</span>
-                        Share of Grad-CAM attention inside the lung mask. Large dot = mean of 3 training seeds, small
-                        dots = individual seeds, bar = seed range. Dashed line =
-                        lung share of the image (chance). On pneumonia X-rays the segmenter misses some consolidated
-                        lung, so normal X-rays are the clean comparison; the ranking is the same on both.
-                    </figcaption>
-                </figure>
-            </div>
-        </section>
-
-        <section class="section wrap" id="external">
-            <header class="section-head">
-                <p class="eyebrow">03 · External test</p>
-                <h2>Every model breaks on another hospital's X-rays</h2>
-            </header>
-            <div class="cols">
-                <div class="prose">
-                    <p>
-                        We scored all three models on 656 adult chest X-rays from the NIH Clinical Center, labelled
-                        by radiologists (Majkowska et al., 2020): 364 with airspace opacity, 292 with no findings.
-                        Different country, different scanners, adults instead of children.
-                    </p>
-                    <p>
-                        Every model loses 0.13–0.20 AUC. MobileNetV2 holds up best on average (0.822 vs 0.794 for
-                        ResNet18) and beats it in two of three seeds (−0.017, +0.078, +0.026). That's a trend, not
-                        proof, with three seeds. The pediatric threshold doesn't transfer either: at 0.946, the served
-                        ResNet18 flags 80% of healthy adults.
-                    </p>
-                    <p>
-                        The honest reading: the model that looks at the lungs also degrades least, but the
-                        population shift hurts every model badly. More seeds or more external data would be needed
-                        to call the robustness gain real.
-                    </p>
-                </div>
-                <div class="table-scroll">
-                    <table>
-                        <caption>AUC, mean ± SD over 3 seeds</caption>
-                        <thead>
-                            <tr><th scope="col">Model</th><th scope="col" class="num">Pediatric</th><th scope="col" class="num">Adult NIH</th><th scope="col" class="num">Drop</th></tr>
-                        </thead>
-                        <tbody>
-                            <tr><th scope="row">ResNet18</th><td class="num">0.954 <span class="ci">± 0.013</span></td><td class="num">0.794 <span class="ci">± 0.023</span></td><td class="num">−0.160</td></tr>
-                            <tr><th scope="row">MobileNetV2</th><td class="num">0.956 <span class="ci">± 0.025</span></td><td class="num">0.822 <span class="ci">± 0.024</span></td><td class="num">−0.134</td></tr>
-                            <tr><th scope="row">EfficientNet-B0</th><td class="num">0.960 <span class="ci">± 0.002</span></td><td class="num">0.758 <span class="ci">± 0.012</span></td><td class="num">−0.202</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section class="section section-alt" id="demo">
-            <div class="wrap">
-                <header class="section-head">
-                    <p class="eyebrow">04 · Live demo</p>
-                    <h2>Run the served model on an X-ray</h2>
-                    <p class="section-sub">Images are downscaled in your browser, sent once for inference, and not stored.</p>
-                </header>
-
-                <div class="demo">
-                    <div class="panel">
-                        <label class="drop" id="drop" for="file">
-                            <input type="file" id="file" accept="image/png,image/jpeg,image/webp">
-                            <span class="drop-empty" id="drop-empty">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
-                                <span class="drop-title">Drop a chest X-ray, or <u>browse</u></span>
-                                <span class="drop-hint">PNG, JPEG or WebP · frontal (PA/AP) view</span>
-                            </span>
-                            <img id="preview" alt="Selected X-ray preview" hidden>
-                        </label>
-                        <div class="samples">
-                            <span>Or try a test-set image:</span>
-                            <button type="button" class="link-btn" data-sample="normal">Normal</button>
-                            <button type="button" class="link-btn" data-sample="pneumonia">Pneumonia</button>
-                        </div>
-                        <div class="panel-foot">
-                            <span class="file-name" id="file-name">No file selected</span>
-                            <button type="button" class="btn btn-ghost btn-sm" id="clear" hidden>Clear</button>
-                            <button type="button" class="btn btn-primary btn-sm" id="analyze" disabled>Analyze</button>
-                        </div>
-                    </div>
-
-                    <div class="panel result" id="result" aria-live="polite">
-                        <p class="result-empty" id="result-empty">Results appear here after you analyze an image.</p>
-                        <div id="result-body" hidden>
-                            <p class="result-label">Model output · ResNet18</p>
-                            <p class="verdict" id="verdict">—</p>
-                            <p class="verdict-note" id="verdict-note"></p>
-
-                            <div class="meter" role="img" id="meter" aria-label="">
-                                <div class="meter-track">
-                                    <span class="meter-marker" id="meter-marker"></span>
-                                </div>
-                                <div class="meter-scale"><span style="left:0">0</span><span style="left:50%">0.50</span><span style="left:94.6%">0.946</span><span style="left:100%"></span></div>
-                            </div>
-
-                            <dl class="probs">
-                                <div><dt>P(pneumonia)</dt><dd id="p-pneu">—</dd></div>
-                                <div><dt>P(normal)</dt><dd id="p-norm">—</dd></div>
-                                <div><dt>Round trip</dt><dd id="latency">—</dd></div>
-                            </dl>
-                            <p class="fine">Not a diagnosis. The 0.946 screening threshold was chosen to keep 95% sensitivity on the test set (cross-validated specificity 0.88).</p>
-                        </div>
-                        <p class="error" id="error" role="alert" hidden></p>
-                    </div>
-                </div>
-
-                <div class="cams" id="cams" hidden>
-                    <h3 class="cams-title">Where each model looked</h3>
-                    <p class="cams-sub">Grad-CAM for each model's own prediction. Red is where the evidence came from. Look for attention on the lung fields versus the shoulders, neck or image edges.</p>
-                    <div class="cams-grid">
-                        <figure class="cam">
-                            <img id="cam-resnet18" alt="ResNet18 Grad-CAM overlay on the uploaded X-ray">
-                            <figcaption><strong>ResNet18</strong> <span>P(pneumonia) <b id="cam-p-resnet18">—</b></span></figcaption>
-                        </figure>
-                        <figure class="cam">
-                            <img id="cam-mobilenet_v2" alt="MobileNetV2 Grad-CAM overlay on the uploaded X-ray">
-                            <figcaption><strong>MobileNetV2</strong> <span>P(pneumonia) <b id="cam-p-mobilenet_v2">—</b></span></figcaption>
-                        </figure>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section wrap" id="method">
-            <header class="section-head">
-                <p class="eyebrow">05 · Method</p>
-                <h2>How it was built</h2>
-            </header>
-            <ol class="steps">
+            <ol class="glance">
                 <li>
-                    <h3>Data</h3>
-                    <p>Kermany et al. (2018) pediatric chest X-rays, 5,856 images labelled NORMAL or PNEUMONIA, ages 1–5, from Guangzhou Women and Children's Medical Center.</p>
+                    <span class="glance-n">01</span>
+                    <h3>They rank cases equally well</h3>
+                    <p class="glance-big">0.954 <i>·</i> 0.956 <i>·</i> 0.960</p>
+                    <p>AUC for ResNet18, MobileNetV2 and EfficientNet-B0, averaged over three training seeds. An early
+                        0.978 for ResNet18 turned out to be a lucky run.</p>
                 </li>
                 <li>
-                    <h3>Transfer learning</h3>
-                    <p>ImageNet-pretrained ResNet18, MobileNetV2 and EfficientNet-B0, each fine-tuned with a 2-class head on identical splits.</p>
+                    <span class="glance-n">02</span>
+                    <h3>Only one looks at the lungs</h3>
+                    <p class="glance-big"><b class="bad">47%</b> <i>vs</i> <b class="good">67%</b></p>
+                    <p>Share of Grad-CAM attention inside the lungs for ResNet18 and MobileNetV2, where chance is 39%.
+                        Every MobileNetV2 seed beats every ResNet18 seed.</p>
                 </li>
                 <li>
-                    <h3>Explainability</h3>
-                    <p>Grad-CAM on the last convolutional block, scored against lung and shoulder masks from a pretrained segmenter. Bootstrap CIs, paired across models.</p>
-                </li>
-                <li>
-                    <h3>Serving</h3>
-                    <p>ONNX Runtime + FastAPI on Vercel. Each model also outputs its class activation map, which equals Grad-CAM for these heads, so heatmaps cost no backward pass.</p>
+                    <span class="glance-n">03</span>
+                    <h3>All of them break elsewhere</h3>
+                    <p class="glance-big">−0.16 <i>·</i> −0.13 <i>·</i> −0.20</p>
+                    <p>AUC drop on 656 adult X-rays from the NIH Clinical Center. The lung-focused model, MobileNetV2,
+                        drops least: a trend, not yet proof.</p>
                 </li>
             </ol>
+            <p class="more"><a href="/research.html">Read the full report</a></p>
         </section>
 
-        <section class="section wrap" id="limitations">
-            <header class="section-head">
-                <p class="eyebrow">06 · Limitations</p>
-                <h2>What this does not show</h2>
-            </header>
-            <ul class="limits">
-                <li><strong>Three seeds per model.</strong> Enough to show the attention gap is stable and the AUC lead was luck; too few for significance tests between architectures.</li>
-                <li><strong>The external test mixes two shifts.</strong> NIH differs in hospital and in age (adults, mostly AP views), so we can't say which one causes the drop.</li>
-                <li><strong>Masks, not radiologists.</strong> Lung masks come from a model trained on adults. It misses some consolidated lung on pediatric pneumonia X-rays, which is why normal X-rays are the primary comparison. On a frontal X-ray the heart overlaps the left lung, and the mask counts that overlap as lung.
-                <li><strong>Not a medical device.</strong> No FDA or CE clearance. Do not use it for clinical decisions.</li>
-            </ul>
+        <section class="section section-alt" id="landscape">
+            <div class="wrap land-grid">
+                <div class="land-copy">
+                    <p class="eyebrow">Attention landscape</p>
+                    <h2>Where each model looks, in 3D</h2>
+                    <p class="section-sub">
+                        The same normal X-ray, raised into a surface. Height is the model's Grad-CAM attention and the
+                        green outline is the lung mask. Peaks inside the outline are evidence a radiologist would recognise.
+                    </p>
+                    <div class="land-toggle" role="group" aria-label="Model">
+                        <button type="button" data-model="resnet18" aria-pressed="false">ResNet18 <span class="bad">36% on lungs</span></button>
+                        <button type="button" data-model="mobilenet_v2" aria-pressed="true">MobileNetV2 <span class="good">73% on lungs</span></button>
+                    </div>
+                    <p class="land-hint">Drag to turn the surface.</p>
+                </div>
+                <div class="land-view" id="land" aria-label="3D surface of the X-ray with Grad-CAM attention as height" role="img">
+                    <img class="land-fallback" src="/images/hero/xray.webp" alt="" width="640" height="480">
+                </div>
+            </div>
+        </section>
+
+        <section class="section wrap cta">
+            <h2>Try it on an X-ray</h2>
+            <p>Upload a chest X-ray, or use a test-set sample. Both served models return a probability and their Grad-CAM, side by side.</p>
+            <div class="actions">
+                <a class="btn btn-primary" href="/research.html#demo">Open the live demo</a>
+                <a class="btn btn-ghost" href="/project_summary.pdf" download>Download summary (PDF)</a>
+            </div>
         </section>
     </main>
 
@@ -418,6 +163,7 @@
         </div>
     </footer>
 
-    <script src="/script.js"></script>
+    <script src="/common.js"></script>
+    <script type="module" src="/landscape.js"></script>
 </body>
 </html>
