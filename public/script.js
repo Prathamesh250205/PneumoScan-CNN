@@ -86,6 +86,7 @@ analyzeBtn.addEventListener('click', async () => {
     hideError();
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = 'Analyzing…';
+    drop.classList.add('scanning');
     const form = new FormData();
     form.append('file', upload, 'xray.jpg');
     const t0 = performance.now();
@@ -97,6 +98,7 @@ analyzeBtn.addEventListener('click', async () => {
     } catch (err) {
         showError(`${err.message}. The server may be waking up, so try again in a few seconds.`);
     } finally {
+        drop.classList.remove('scanning');
         analyzeBtn.disabled = false;
         analyzeBtn.textContent = 'Analyze';
     }
@@ -111,7 +113,11 @@ const LEVELS = [
 
 function render({ pneumonia_probability: p, normal_probability: n, models }, ms) {
     for (const [name, m] of Object.entries(models)) {
-        $(`cam-${name}`).src = m.heatmap;
+        const img = $(`cam-${name}`);
+        img.classList.remove('wipe');
+        img.src = m.heatmap;
+        void img.offsetWidth; // restart the reveal animation on every result
+        img.classList.add('wipe');
         $(`cam-p-${name}`).textContent = m.pneumonia_probability.toFixed(3);
     }
     $('cams').hidden = false;
@@ -132,3 +138,64 @@ function render({ pneumonia_probability: p, normal_probability: n, models }, ms)
 function showResult(on) { resultBody.hidden = !on; resultEmpty.hidden = on; if (!on) $('cams').hidden = true; }
 function showError(msg) { errorBox.textContent = msg; errorBox.hidden = false; }
 function hideError() { errorBox.hidden = true; }
+
+// --- Motion: exploded hero, scroll reveals, count-ups ---
+const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const stage = $('stage');
+const stack = stage.querySelector('.stack');
+
+requestAnimationFrame(() => setTimeout(() => stage.classList.add('exploded'), calm ? 0 : 350));
+
+if (!calm && matchMedia('(pointer: fine)').matches) {
+    let frame = 0;
+    stage.addEventListener('pointermove', (e) => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+            const r = stage.getBoundingClientRect();
+            const x = (e.clientX - r.left) / r.width - 0.5;
+            const y = (e.clientY - r.top) / r.height - 0.5;
+            stack.style.setProperty('--tz', `${(x * 14).toFixed(2)}deg`);
+            stack.style.setProperty('--tx', `${(-y * 10).toFixed(2)}deg`);
+        });
+    });
+    stage.addEventListener('pointerleave', () => { stack.style.setProperty('--tz', '0deg'); stack.style.setProperty('--tx', '0deg'); });
+}
+
+// Hover or focus a legend entry to isolate that layer
+stage.querySelectorAll('.legend button').forEach((btn) => {
+    const on = () => {
+        stage.dataset.active = btn.dataset.layer;
+        stage.querySelectorAll('.legend button').forEach((b) => b.classList.toggle('on', b === btn));
+    };
+    const off = () => { delete stage.dataset.active; btn.classList.remove('on'); };
+    btn.addEventListener('pointerenter', on);
+    btn.addEventListener('focus', on);
+    btn.addEventListener('pointerleave', off);
+    btn.addEventListener('blur', off);
+});
+
+function countUp(el) {
+    const target = Number(el.dataset.count);
+    const unit = el.querySelector('small')?.outerHTML ?? '';
+    const t0 = performance.now();
+    const tick = (t) => {
+        const k = Math.min(1, (t - t0) / 900);
+        el.innerHTML = Math.round(target * (1 - (1 - k) ** 3)) + unit;
+        if (k < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+}
+
+const revealables = document.querySelectorAll('.section-head, .prose, .table-scroll, .figure, .steps li, .limits li');
+if (calm || !('IntersectionObserver' in window)) {
+    document.querySelectorAll('.dotplot').forEach((el) => el.classList.add('in'));
+} else {
+    revealables.forEach((el) => el.classList.add('reveal'));
+    const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        if (e.target.matches('.stats')) e.target.querySelectorAll('[data-count]').forEach(countUp);
+        io.unobserve(e.target);
+    }), { rootMargin: '0px 0px -12% 0px' });
+    [...revealables, ...document.querySelectorAll('.dotplot, .stats')].forEach((el) => io.observe(el));
+}

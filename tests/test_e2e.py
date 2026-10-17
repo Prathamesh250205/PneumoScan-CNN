@@ -25,6 +25,10 @@ def test_landing_and_predict(tmp_path):
             page.goto(BASE_URL)
 
             expect(page.locator("h1")).to_contain_text("wrong")
+            # 3D hero assembles, and the dot plot animates once scrolled into view
+            expect(page.locator("#stage")).to_have_class(re.compile("exploded"))
+            page.locator(".dotplot").scroll_into_view_if_needed()
+            expect(page.locator(".dotplot")).to_have_class(re.compile(r"\bin\b"))
             expect(page.locator("#status")).to_have_attribute("data-state", re.compile("warn|ok"))
             # No horizontal scroll on any viewport
             assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
@@ -40,10 +44,25 @@ def test_landing_and_predict(tmp_path):
             expect(page.locator("#verdict")).to_have_text("Pneumonia likely", timeout=60_000)
             page.click("[data-sample=normal]")
             expect(page.locator("#verdict")).to_have_text("Normal likely", timeout=60_000)
-            for name in ("resnet18", "mobilenet_v2"):
-                expect(page.locator(f"#cam-{name}")).to_have_attribute("src", re.compile("^data:image/jpeg"))
-                assert page.evaluate(f"document.getElementById('cam-{name}').naturalWidth") > 0
+            for model in ("resnet18", "mobilenet_v2"):
+                expect(page.locator(f"#cam-{model}")).to_have_attribute("src", re.compile("^data:image/jpeg"))
+                assert page.evaluate(f"document.getElementById('cam-{model}').naturalWidth") > 0
 
             page.screenshot(path=OUT / f"{name}.png", full_page=True)
             assert not errors, errors
+        browser.close()
+
+
+def test_reduced_motion():
+    """With reduced motion the page skips the animations but shows the final state, with no JS errors."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(reduced_motion="reduce")
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(BASE_URL)
+        expect(page.locator("#stage")).to_have_class(re.compile("exploded"))
+        expect(page.locator(".dotplot")).to_have_class(re.compile(r"\bin\b"))
+        assert page.evaluate("getComputedStyle(document.querySelector('#findings .prose')).opacity") == "1"
+        assert not errors, errors
         browser.close()

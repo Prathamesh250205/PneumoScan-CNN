@@ -7,13 +7,14 @@
     <meta name="description" content="A comparison of ResNet18, MobileNetV2 and EfficientNet-B0 for pediatric pneumonia screening, and what Grad-CAM reveals about where each model looks.">
     <meta property="og:title" content="The most accurate model was looking at the wrong thing">
     <meta property="og:description" content="ResNet18 vs MobileNetV2 vs EfficientNet-B0 on 5,856 pediatric chest X-rays, audited with Grad-CAM.">
-    <meta property="og:image" content="/images/gradcam_normal_example.webp">
+    <meta property="og:image" content="/images/og.png">
     <meta name="theme-color" content="#f6f5f1">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2316181d'/%3E%3Cpath d='M16 7v18M10 11c-3 2-4 8-2 12M22 11c3 2 4 8 2 12' stroke='%23f6f5f1' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <script>document.documentElement.classList.add('js')</script>
 </head>
 <body>
     <a class="skip" href="#demo">Skip to demo</a>
@@ -37,22 +38,45 @@
 
     <main id="top">
         <section class="hero wrap">
-            <p class="eyebrow">Research demo · Pediatric chest radiography</p>
-            <h1>The most accurate model was looking at the wrong&nbsp;thing.</h1>
-            <p class="lede">
-                We trained three CNNs, three seeds each, to detect pneumonia in pediatric chest X-rays.
-                ResNet18 was the most accurate, yet only 47% of its Grad-CAM attention landed on the lungs,
-                barely above the 39% you'd expect by chance. MobileNetV2 put 67% there, in every seed.
-            </p>
-            <div class="actions">
-                <a class="btn btn-primary" href="#demo">Try the classifier</a>
-                <a class="btn btn-ghost" href="/project_summary.pdf" download>Download summary (PDF)</a>
+            <div class="hero-grid">
+                <div class="hero-copy">
+                    <p class="eyebrow">Research demo · Pediatric chest radiography</p>
+                    <h1>The most accurate model was looking at the wrong&nbsp;thing.</h1>
+                    <p class="lede">
+                        We trained three CNNs, three seeds each, to detect pneumonia in pediatric chest X-rays.
+                        ResNet18 was the most accurate, yet only 47% of its Grad-CAM attention landed on the lungs,
+                        barely above the 39% you'd expect by chance. MobileNetV2 put 67% there, in every seed.
+                    </p>
+                    <div class="actions">
+                        <a class="btn btn-primary" href="#demo">Try the classifier</a>
+                        <a class="btn btn-ghost" href="/project_summary.pdf" download>Download summary (PDF)</a>
+                    </div>
+                </div>
+
+                <figure class="stage" id="stage" aria-labelledby="stage-cap">
+                    <div class="stack" aria-hidden="true">
+                        <div class="sheet sheet-base" style="--i:0" data-layer="xray"><img src="/images/hero/xray.webp" width="640" height="480" alt=""></div>
+                        <div class="sheet" style="--i:1" data-layer="lungs"><img class="ghost" src="/images/hero/xray.webp" alt=""><img src="/images/hero/lungs.webp" alt=""></div>
+                        <div class="sheet" style="--i:2" data-layer="resnet18"><img class="ghost" src="/images/hero/xray.webp" alt=""><img src="/images/hero/cam_resnet18.webp" alt=""></div>
+                        <div class="sheet" style="--i:3" data-layer="mobilenet_v2"><img class="ghost" src="/images/hero/xray.webp" alt=""><img src="/images/hero/cam_mobilenet_v2.webp" alt=""></div>
+                    </div>
+                    <ol class="legend">
+                        <li><button type="button" data-layer="mobilenet_v2"><span class="n">04</span><span class="k">MobileNetV2 attention</span><span class="v good">73% on lungs</span></button></li>
+                        <li><button type="button" data-layer="resnet18"><span class="n">03</span><span class="k">ResNet18 attention</span><span class="v bad">36% on lungs</span></button></li>
+                        <li><button type="button" data-layer="lungs"><span class="n">02</span><span class="k">Lung mask</span><span class="v">38% of image</span></button></li>
+                        <li><button type="button" data-layer="xray"><span class="n">01</span><span class="k">Chest X-ray</span><span class="v">normal, test set</span></button></li>
+                    </ol>
+                    <figcaption id="stage-cap">
+                        One normal test X-ray, pulled apart into the layers we measure. Both models correctly call it
+                        normal. Only MobileNetV2 is looking at the lungs; ResNet18's attention sits below the diaphragm.
+                    </figcaption>
+                </figure>
             </div>
 
             <dl class="stats">
-                <div><dt>ResNet18 accuracy</dt><dd>88<small>%</small></dd></div>
-                <div><dt>ResNet18 lung attention</dt><dd>47<small>%</small></dd></div>
-                <div><dt>MobileNetV2 lung attention</dt><dd>67<small>%</small></dd></div>
+                <div><dt>ResNet18 accuracy</dt><dd data-count="88">88<small>%</small></dd></div>
+                <div><dt>ResNet18 lung attention</dt><dd data-count="47">47<small>%</small></dd></div>
+                <div><dt>MobileNetV2 lung attention</dt><dd data-count="67">67<small>%</small></dd></div>
                 <div><dt>Seeds per model</dt><dd>3</dd></div>
             </dl>
         </section>
@@ -376,7 +400,7 @@
             <ul class="limits">
                 <li><strong>Three seeds per model.</strong> Enough to show the attention gap is stable and the AUC lead was luck; too few for significance tests between architectures.</li>
                 <li><strong>The external test mixes two shifts.</strong> NIH differs in hospital and in age (adults, mostly AP views), so we can't say which one causes the drop.</li>
-                <li><strong>Masks, not radiologists.</strong> Lung masks come from a model trained on adults. It misses some consolidated lung on pediatric pneumonia X-rays, which is why normal X-rays are the primary comparison.</li>
+                <li><strong>Masks, not radiologists.</strong> Lung masks come from a model trained on adults. It misses some consolidated lung on pediatric pneumonia X-rays, which is why normal X-rays are the primary comparison. On a frontal X-ray the heart overlaps the left lung, and the mask counts that overlap as lung.
                 <li><strong>Not a medical device.</strong> No FDA or CE clearance. Do not use it for clinical decisions.</li>
             </ul>
         </section>

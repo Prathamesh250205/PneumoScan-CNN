@@ -114,6 +114,7 @@ pip install torchxrayvision scipy pandas playwright pytest && playwright install
 | Score seed checkpoints (NIH + attention) | `python scripts/seed_analysis.py --ckpt-dir checkpoints --kermany-test chest_xray/test --nih-dir nih_test --mask-cache masks.npz` |
 | AUC comparison, served models (paired bootstrap) | `python scripts/compare_auc.py results` |
 | Attention analysis | `python scripts/gradcam_overlap.py --weights-dir <dir with *_best.pth> --test-dir chest_xray/test --out results/kermany` |
+| Landing-page 3D layers (X-ray, lung mask, Grad-CAMs) | `python scripts/make_hero_layers.py chest_xray/test/NORMAL/NORMAL2-IM-0111-0001.jpeg --mask-cache masks.npz` |
 | Summary PDF (from `docs/summary.html`) | `python scripts/make_summary_pdf.py` |
 | Run locally | `uvicorn main:app --port 8000` |
 | End-to-end test | `pytest tests` (or `BASE_URL=https://pneumoscan-nine.vercel.app pytest tests`) |
